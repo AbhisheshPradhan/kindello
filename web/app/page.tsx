@@ -24,7 +24,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { CentreResults, type Centre } from "@/components/centre-card";
 
 const SUGGESTIONS = [
-  "Long day care for a 2-year-old near Carlton, rated Exceeding",
+  "Long day care for a 2-year-old near Gladesville, rated Exceeding",
   "After-school care for a 6-year-old near Parramatta",
   "Kindergarten for a 4-year-old around postcode 2026",
   "Before-school care close to Surry Hills",
@@ -84,6 +84,18 @@ export default function Home() {
   const busy = status === "submitted" || status === "streaming";
   const isFresh = messages.length === 0;
 
+  // Show the "thinking" loader only until the assistant's reply text starts arriving
+  // (i.e. while resolving/searching) — once text streams, the message itself is the feedback.
+  const lastMsg = messages[messages.length - 1];
+  const lastAssistantText =
+    lastMsg?.role === "assistant"
+      ? lastMsg.parts
+          .filter((p) => p.type === "text")
+          .map((p) => (p as { text: string }).text)
+          .join("")
+      : "";
+  const showThinking = busy && !lastAssistantText;
+
   // Animate the suburb placeholder only on a fresh session (and while empty). Once a
   // chat is underway, drop the animation for a plain prompt.
   const typed = useTypewriter(SUBURBS, isFresh && input === "");
@@ -104,7 +116,7 @@ export default function Home() {
       onSubmit={() => send()}
       className="border-border bg-card shadow-lg"
     >
-      <PromptInputTextarea placeholder={placeholder} />
+      <PromptInputTextarea placeholder={placeholder} className="text-foreground" />
       <PromptInputActions className="justify-end gap-2 pt-2">
         <label htmlFor="model" className="sr-only">
           Model
@@ -178,11 +190,15 @@ export default function Home() {
         <>
           <ChatContainerRoot className="relative flex-1">
             <ChatContainerContent className="mx-auto w-full max-w-3xl px-4 py-6">
-              {messages.map((m) => {
+              {messages.map((m, i) => {
                 const text = m.parts
                   .filter((p) => p.type === "text")
                   .map((p) => (p as { text: string }).text)
                   .join("");
+                // While this (last) message is still streaming, hold the cards back
+                // until the intro text has come in — so the message loads first,
+                // then the results stream in after.
+                const streamingThis = i === messages.length - 1 && busy;
                 // Render searchCentres tool output as cards (ignore the {error} object form).
                 const centres = m.parts
                   .filter(
@@ -211,18 +227,20 @@ export default function Home() {
                       {text && (
                         <MessageContent
                           markdown
-                          className="bg-card text-card-foreground prose-sm rounded-2xl border border-border px-4 py-2.5 shadow-sm prose-a:text-primary prose-a:underline"
+                          className="bg-card text-card-foreground prose-sm rounded-2xl border border-border px-4 py-2.5 shadow-sm prose-strong:text-inherit prose-headings:text-inherit prose-a:text-primary prose-a:underline"
                         >
                           {text}
                         </MessageContent>
                       )}
-                      {centres.length > 0 && <CentreResults centres={centres} />}
+                      {centres.length > 0 && !streamingThis && (
+                        <CentreResults centres={centres} />
+                      )}
                     </div>
                   </Message>
                 );
               })}
 
-              {busy && (
+              {showThinking && (
                 <div className="flex justify-start py-2">
                   <div className="rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
                     <Loader variant="typing" />

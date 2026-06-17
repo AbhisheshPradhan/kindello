@@ -110,3 +110,18 @@
     cursor: pointer;
   }
 }
+
+/* Bouncing typing-indicator dots — prompt-kit's TypingLoader references this keyframe
+   (animate-[typing_1s_infinite]) but doesn't ship it. Staggered per-dot via animationDelay. */
+@keyframes typing {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-0.25rem);
+  }
+}

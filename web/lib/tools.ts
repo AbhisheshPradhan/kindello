@@ -44,20 +44,33 @@ export const resolveLocation = tool({
         ? { lat: r.lat, lng: r.lng, label: `postcode ${t}`, kind: "postcode", n: r.n }
         : { error: "No centres found there to anchor a search on." };
     }
-    const m = t.match(/^(.*?)(?:\s+(ACT|NSW|NT|QLD|SA|TAS|VIC|WA))?$/i);
-    const suburb = (m?.[1] ?? t).trim();
+    // Normalise punctuation so "Glebe, NSW" / "Glebe NSW" / "Glebe" all parse cleanly.
+    const cleaned = t.replace(/,/g, " ").replace(/\s+/g, " ").trim();
+    const m = cleaned.match(/^(.*?)(?:\s+(ACT|NSW|NT|QLD|SA|TAS|VIC|WA))?$/i);
+    const suburb = (m?.[1] ?? cleaned).trim();
     const state = (m?.[2] ?? "").toUpperCase();
-    const params: unknown[] = [suburb];
-    let sql = `SELECT avg(latitude)::float8 lat, avg(longitude)::float8 lng, count(*)::int n
-               FROM services WHERE upper(suburb) = upper($1) AND latitude IS NOT NULL`;
-    if (state) {
-      sql += ` AND state = $2`;
-      params.push(state);
-    }
-    const { rows } = await pool.query(sql, params);
-    const r = rows[0];
+
+    const lookup = async (withState: boolean) => {
+      const params: unknown[] = [suburb];
+      let sql = `SELECT state, avg(latitude)::float8 lat, avg(longitude)::float8 lng, count(*)::int n
+                 FROM services WHERE upper(suburb) = upper($1) AND latitude IS NOT NULL`;
+      if (withState && state) {
+        sql += ` AND state = $2`;
+        params.push(state);
+      }
+      // Group by state and take the biggest cluster, so a name shared across states
+      // (e.g. Carlton VIC/NSW) resolves to one real place — NOT the meaningless
+      // midpoint of all of them (which lands in rural nowhere and matches nothing).
+      sql += ` GROUP BY state ORDER BY n DESC LIMIT 1`;
+      const { rows } = await pool.query(sql, params);
+      return rows[0];
+    };
+
+    // Prefer suburb+state; fall back to suburb-only if the state guess misses.
+    let r = await lookup(true);
+    if (!r?.n && state) r = await lookup(false);
     return r?.n
-      ? { lat: r.lat, lng: r.lng, label: suburb + (state ? `, ${state}` : ""), kind: "suburb", n: r.n }
+      ? { lat: r.lat, lng: r.lng, label: `${suburb}, ${r.state}`, kind: "suburb", n: r.n }
       : { error: "No centres found there to anchor a search on." };
   },
 });

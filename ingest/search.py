@@ -74,19 +74,32 @@ def resolve_location(text: str, conn=None) -> dict | None:
                         "kind": "postcode", "n": row["n"]}
             return None
 
-        # "suburb" or "suburb STATE" -> suburb centroid (optionally state-filtered).
-        m = re.match(r"^(.*?)(?:\s+(ACT|NSW|NT|QLD|SA|TAS|VIC|WA))?$", text, re.I)
+        # "suburb" / "suburb STATE" / "suburb, STATE" -> suburb centroid.
+        # Strip commas + collapse whitespace so "Glebe, NSW" parses cleanly.
+        cleaned = re.sub(r"\s+", " ", text.replace(",", " ")).strip()
+        m = re.match(r"^(.*?)(?:\s+(ACT|NSW|NT|QLD|SA|TAS|VIC|WA))?$", cleaned, re.I)
         suburb = m.group(1).strip()
         state = (m.group(2) or "").upper()
-        sql = ("SELECT avg(latitude)::float8 lat, avg(longitude)::float8 lng, count(*) n "
-               "FROM services WHERE upper(suburb) = upper(%s) AND latitude IS NOT NULL")
-        params: list = [suburb]
-        if state:
-            sql += " AND state = %s"
-            params.append(state)
-        row = own.execute(sql, params).fetchone()
+
+        def lookup(with_state: bool):
+            sql = ("SELECT state, avg(latitude)::float8 lat, avg(longitude)::float8 lng, count(*) n "
+                   "FROM services WHERE upper(suburb) = upper(%s) AND latitude IS NOT NULL")
+            params: list = [suburb]
+            if with_state and state:
+                sql += " AND state = %s"
+                params.append(state)
+            # Group by state and take the biggest cluster, so a name shared across states
+            # (e.g. Carlton VIC/NSW) resolves to one real place — NOT the meaningless
+            # midpoint of all of them (which lands in rural nowhere and matches nothing).
+            sql += " GROUP BY state ORDER BY n DESC LIMIT 1"
+            return own.execute(sql, params).fetchone()
+
+        # Prefer suburb+state; fall back to suburb-only if the state guess misses.
+        row = lookup(True)
+        if not (row and row["n"]) and state:
+            row = lookup(False)
         if row and row["n"]:
-            label = f"{suburb.title()}" + (f", {state}" if state else "")
+            label = f"{suburb.title()}, {row['state']}"
             return {"lat": row["lat"], "lng": row["lng"], "label": label,
                     "kind": "suburb", "n": row["n"]}
         return None

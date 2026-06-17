@@ -121,7 +121,7 @@ function ratingBadge(rating: string | null): { label: string; className: string 
   }
 }
 
-function CentreCard({ centre }: { centre: Centre }) {
+function CentreCard({ centre, index }: { centre: Centre; index: number }) {
   const hours = summariseHours(centre.operating_hours);
   const badge = ratingBadge(centre.overall_rating);
   const place = [centre.suburb, centre.state, centre.postcode]
@@ -129,7 +129,11 @@ function CentreCard({ centre }: { centre: Centre }) {
     .join(" ");
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40">
+    <div
+      // Staggered fade/slide-in so results visibly stream in after the message.
+      className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40"
+      style={{ animationDelay: `${index * 90}ms` }}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="leading-snug font-medium">{centre.service_name}</h3>
@@ -201,7 +205,7 @@ export function CentreResults({ centres }: { centres: Centre[] }) {
   return (
     <div className="mt-2 flex flex-col gap-2.5">
       {centres.map((c, i) => (
-        <CentreCard key={`${c.service_name}-${i}`} centre={c} />
+        <CentreCard key={`${c.service_name}-${i}`} centre={c} index={i} />
       ))}
     </div>
   );
