@@ -1,0 +1,24 @@
+# Data files (raw downloads & processed) — do not commit datasets
+data/raw/*.csv
+data/raw/*.xlsx
+data/raw/*.zip
+data/raw/gnaf_psv/
+data/processed/
+
+# Database backups / dumps
+backups/
+*.dump
+
+# Playwright MCP scratch (page snapshots from browser tools)
+.playwright-mcp/
+
+# Python
+ingest/.venv/
+__pycache__/
+*.pyc
+.env
+
+# Node (later: web app)
+node_modules/
+.next/
+.DS_Store
