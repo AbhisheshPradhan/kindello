@@ -27,7 +27,7 @@ Source-of-truth fields are overwritten on daily sync; enrichment fields are writ
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Ingest pipeline         | **Python** (`ingest/`) — small dataset, no pandas needed                                                                                                                                                                                                                                                                                           |
 | Database                | **PostgreSQL 18** local (Homebrew, port 5432) → Neon (cloud) **only for demos** (see [[local-poc-then-cloud-for-demos]]). **PostGIS installed + enabled** (3.6.4) for radius search. pgvector (embeddings) still to add. _Was @17; upgraded to @18 because Homebrew PostGIS targets @18 — old @17 data backed up at `backups/kindello_pg17.dump`._ |
-| Web app / API / chatbot | **TypeScript / Next.js 16** (`web/`, built) — matches the scraper-saas-starter stack. UI on **prompt-kit + shadcn/ui** (Tailwind v4), light/dark mode via `next-themes`                                                                                                                                                                                       |
+| Web app / API / chatbot | **TypeScript / Next.js 16** (`web/`, built) — matches the scraper-saas-starter stack. UI on **prompt-kit + shadcn/ui** (Tailwind v4), light/dark mode via `next-themes`                                                                                                                                                                            |
 | Chatbot                 | Claude (`claude-opus-4-8`); hybrid retrieval = structured SQL filters (geo/rating/vacancy) + vector search; tool-calling agent. Use the `claude-api` skill for current model IDs when building.                                                                                                                                                    |
 | Proxies                 | Webshare (residential/rotating) to reach WAF-blocked open-data sources                                                                                                                                                                                                                                                                             |
 | Browser automation      | **Playwright MCP** (`@playwright/mcp`) — drives a real local browser to perform ACECQA's own public CSV export (the clean route past the WAF). Added to project MCP config; tools load after a Claude Code restart.                                                                                                                                |
@@ -88,6 +88,24 @@ kindello/
 - Keep all project files inside this repo. Postgres binaries / `brew` are system-level (unavoidable).
 - Design lat/lng as plain numeric now; upgrade to PostGIS `geography` later without a rewrite.
 
+## Commit messages
+
+Going-forward standard: **Conventional Commits** — `type(scope): subject`. (The two existing commits predate this and use a descriptive sentence style; don't treat them as the template.) The two commit _rules_ in "Rules / conventions" above still apply: never commit/push without explicit instruction, and never add a `Co-Authored-By` line.
+
+- **Types:** `feat` (new capability), `fix` (bug fix), `chore` (deps/config/tooling/housekeeping), `docs` (docs/comments incl. this file), `refactor` (restructure, no behaviour change), `style` (formatting only), `test` (tests), `perf` (performance).
+- **Scope** (optional): lowercase, names the area touched — e.g. `ingest`, `geocode`, `gis`, `search`, `web`, `chatbot`, `schema`, `docs`. Omit if it spans many.
+- **Subject:** imperative mood ("add", not "added"), lowercase first word, no trailing period, ≤ ~72 chars.
+- **Body** (optional): explain _why_, not _what_; blank line after subject; wrap at ~72 chars.
+
+Examples (illustrative — the existing log predates the convention):
+
+```
+feat(search): resolve location to biggest suburb cluster
+feat(web): render search results as centre cards
+fix(geocode): strip Unit/Lot prefixes before G-NAF match
+docs: document daily ACECQA curl refresh route
+```
+
 ## Status / what's built
 
 - [x] Local Postgres 17 running; empty `kindello` database created (only `plpgsql` ext).
@@ -117,8 +135,8 @@ Next.js 16 (App Router, TS, Tailwind v4) — **this is Next.js 16, newer than tr
 - **Results render as cards, not text** (`components/centre-card.tsx`): `page.tsx` reads each `tool-searchCentres` part's `output` (state `output-available`) and renders `<CentreResults>` — per-centre card with NQS badge (tiered colours), distance, address, **hours summary** (`summariseHours` collapses the `operating_hours` JSONB into "Mon–Fri 7:30am–6pm"), approved places, phone (`tel:`) + Directions (`maps_link`). The system prompt tells the model NOT to re-list centres in text — just a 1–2 sentence intro above the cards. (Error results `{error}` are skipped, not carded.)
 - **Tool output contract:** the model can only use/surface what `searchCentres` SELECTs and what the system prompt tells it to present — both matter (the "no phone" bug was a missing SELECT field AND a presentation list that didn't ask for it). Currently returns name/address/suburb/postcode/rating/**phone**/**operating_hours**/places/distance/maps_link.
 - **`resolveLocation` gotchas (both fixed in `web/lib/tools.ts` AND `ingest/search.py`, kept in parity):** when debugging "found nothing", check the saved transcript (`chat_messages.parts`) for the tool `input`/`output` — these failures are upstream in `resolveLocation`, not `searchCentres`.
-  1. **"Suburb, STATE" punctuation:** models phrase locations as `"Glebe, NSW"`; the old regex left the comma on the suburb (`"Glebe,"`) → 0 rows → `{error}` → weak models (gpt-4o-mini) gave up *without ever calling `searchCentres`*. Fix: strip commas + collapse whitespace before parsing; fall back to suburb-only if a state guess misses.
-  2. **Same suburb name in multiple states:** `"Carlton"` exists in VIC (9) and NSW (6); averaging lat/lng across all of them gave a centroid in **rural farmland near Albury** (the midpoint), matching nothing within 5km. Fix: `GROUP BY state ORDER BY count DESC LIMIT 1` — resolve to the **biggest cluster** (one real place), and put the resolved state in the `label` (e.g. "Carlton, VIC") so it's visible which one was picked.
+    1. **"Suburb, STATE" punctuation:** models phrase locations as `"Glebe, NSW"`; the old regex left the comma on the suburb (`"Glebe,"`) → 0 rows → `{error}` → weak models (gpt-4o-mini) gave up _without ever calling `searchCentres`_. Fix: strip commas + collapse whitespace before parsing; fall back to suburb-only if a state guess misses.
+    2. **Same suburb name in multiple states:** `"Carlton"` exists in VIC (9) and NSW (6); averaging lat/lng across all of them gave a centroid in **rural farmland near Albury** (the midpoint), matching nothing within 5km. Fix: `GROUP BY state ORDER BY count DESC LIMIT 1` — resolve to the **biggest cluster** (one real place), and put the resolved state in the `label` (e.g. "Carlton, VIC") so it's visible which one was picked.
 - **Chat logging** (`web/db/schema.sql`): `chat_sessions` + `chat_messages` (full `parts` JSONB incl. tool calls) in the same Postgres. Lets us review conversations to debug the agent, resume old chats, and seed the CRM. New session id per page load (refresh = new chat, for now). Review by querying `chat_messages` directly.
 - **Location UX (decided):** typed location is **primary** (chat-native, works in embeds, captures true intent — parents search home/work/a suburb, not their GPS); browser geolocation only as an **opt-in "use my location" tap**, never auto-prompted on load. Backend already supports both (`resolveLocation(text)` vs `searchCentres(lat,lng)`). Geolocation in the embedded widget needs the host site's `allow="geolocation"`.
 - **Maps preview:** free option = Maps **Embed API** iframe (we have lat/lng). Real centre **photos** = Places API (paid, Tier-2 enrichment, cache it) — competitor hosts its own cover images + claim-uploads instead. Show a map only on expand, not per list row (cost/perf).
