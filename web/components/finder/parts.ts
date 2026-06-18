@@ -78,7 +78,9 @@ export function deltaFromAssistant(m: UIMessage): Partial<SearchState> | null {
 				}
 			).input;
 			if (inp) {
-				if (typeof inp.radius_km === "number") delta.radiusKm = inp.radius_km;
+				// Deliberately DON'T mirror radius_km: radius is a user-owned filter (the
+				// radius chip), and the model often picks a narrow radius for "near"/"close
+				// to", which would silently shrink the chip + result set "by itself".
 				delta.careType = (inp.care_type as CareType) ?? null;
 				delta.minRating = (inp.min_rating as NqsRating) ?? null;
 				delta.keyword = inp.keyword ?? null;
