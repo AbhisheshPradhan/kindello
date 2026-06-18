@@ -75,18 +75,6 @@ function makePinCard(p: MapPoint): HTMLElement {
 		card.appendChild(addr);
 	}
 
-	if (p.id) {
-		const hint = document.createElement("div");
-		hint.className =
-			"mt-3 pt-2.5 border-t border-border text-[12px] font-semibold text-teal-700 inline-flex items-center gap-1";
-		hint.textContent = "Open profile";
-		const arrow = document.createElement("span");
-		arrow.textContent = "↗";
-		arrow.className =
-			"transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5";
-		hint.appendChild(arrow);
-		card.appendChild(hint);
-	}
 	return card;
 }
 
