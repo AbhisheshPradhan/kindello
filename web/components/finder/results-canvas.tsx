@@ -137,6 +137,12 @@ export function ResultsCanvas({
 			lng: c.longitude as number,
 			rating: c.overall_rating,
 			label: c.service_name,
+			serviceType: c.service_type,
+			address:
+				[c.service_address, c.suburb, c.state, c.postcode]
+					.filter(Boolean)
+					.join(", ") || null,
+			id: c.id,
 		}));
 
 	return (

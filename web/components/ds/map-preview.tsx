@@ -8,6 +8,10 @@ export type MapPoint = {
 	lng: number;
 	rating?: number | string | null;
 	label?: string;
+	// Optional details for the click-to-open pin card (Finder map).
+	address?: string | null;
+	serviceType?: string | null;
+	id?: string;
 };
 
 /**
@@ -187,10 +191,10 @@ function MapPlaceholder({
 						</span>
 					)}
 					<span
-						className="flex items-center justify-center w-5.5 h-5.5 border-2 border-white rounded-[50%_50%_50%_0] rotate-45 shadow-[0_2px_5px_rgba(0,0,0,.28)]"
+						className="flex items-center justify-center w-5.5 h-5.5 border-2 border-white rounded-[50%_50%_50%_0] -rotate-45 shadow-[0_2px_5px_rgba(0,0,0,.28)]"
 						style={{ background: pinTone(p.rating) }}
 					>
-						<span className="w-1.5 h-1.5 rounded-full bg-white -rotate-45" />
+						<span className="w-1.5 h-1.5 rounded-full bg-white rotate-45" />
 					</span>
 				</span>
 			))}

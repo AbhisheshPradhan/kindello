@@ -20,9 +20,57 @@ function isValid(p: MapPoint) {
 }
 
 /** Build a teardrop pin matching the placeholder's pins (same Tailwind classes). */
+// A small card shown when a pin is clicked: name, type, NQS rating, address, link.
+// Built via DOM (not innerHTML) so centre names can't inject markup.
+function makePinCard(p: MapPoint): HTMLElement {
+	const card = document.createElement("div");
+	card.className = "w-56 font-sans";
+
+	const name = document.createElement("div");
+	name.className = "font-semibold text-[13.5px] leading-snug text-foreground";
+	name.textContent = p.label ?? "Centre";
+	card.appendChild(name);
+
+	if (p.serviceType) {
+		const type = document.createElement("div");
+		type.className = "text-[11.5px] text-muted-foreground mt-0.5";
+		type.textContent = p.serviceType;
+		card.appendChild(type);
+	}
+
+	if (typeof p.rating === "string" && p.rating) {
+		const badge = document.createElement("div");
+		badge.className =
+			"inline-flex items-center gap-1.25 mt-1.5 px-2 py-0.5 rounded-full text-[11.5px] font-semibold bg-secondary text-body";
+		const dot = document.createElement("span");
+		dot.className = "w-2 h-2 rounded-full";
+		dot.style.background = pinTone(p.rating);
+		badge.appendChild(dot);
+		badge.appendChild(document.createTextNode(p.rating));
+		card.appendChild(badge);
+	}
+
+	if (p.address) {
+		const addr = document.createElement("div");
+		addr.className = "text-[11.5px] text-muted-foreground mt-1.5 leading-snug";
+		addr.textContent = p.address;
+		card.appendChild(addr);
+	}
+
+	if (p.id) {
+		const link = document.createElement("a");
+		link.href = `/centre/${p.id}`;
+		link.className =
+			"mt-2 inline-block text-[12px] font-semibold text-teal-700 hover:underline";
+		link.textContent = "More info →";
+		card.appendChild(link);
+	}
+	return card;
+}
+
 function makePin(p: MapPoint, showLabels: boolean): HTMLElement {
 	const wrap = document.createElement("div");
-	wrap.className = "flex flex-col items-center";
+	wrap.className = "flex flex-col items-center cursor-pointer";
 	// Name stays discoverable on hover even when labels are off, without cluttering the map.
 	if (p.label) wrap.title = p.label;
 
@@ -35,12 +83,14 @@ function makePin(p: MapPoint, showLabels: boolean): HTMLElement {
 	}
 
 	const pin = document.createElement("span");
+	// Sharp corner is bottom-left (border-radius 0 there); rotate -45deg so the point
+	// faces straight DOWN onto the coordinate (the marker anchor is "bottom").
 	pin.className =
-		"flex items-center justify-center w-5.5 h-5.5 border-2 border-white rounded-[50%_50%_50%_0] rotate-45 shadow-[0_2px_5px_rgba(0,0,0,.28)]";
+		"flex items-center justify-center w-5.5 h-5.5 border-2 border-white rounded-[50%_50%_50%_0] -rotate-45 shadow-[0_2px_5px_rgba(0,0,0,.28)]";
 	pin.style.background = pinTone(p.rating);
 
 	const dot = document.createElement("span");
-	dot.className = "w-1.5 h-1.5 rounded-full bg-white -rotate-45";
+	dot.className = "w-1.5 h-1.5 rounded-full bg-white rotate-45";
 	pin.appendChild(dot);
 	wrap.appendChild(pin);
 
@@ -100,23 +150,47 @@ export default function MapboxMap({
 				cooperativeGestures: false,
 			});
 			// Match the basemap to the app theme via Standard's day/night light
-			// preset (set once the Standard style + its config are loaded).
-			map.on("style.load", () =>
+			// preset, and hide POI labels (restaurants/cafes/attractions) so they
+			// don't compete with our childcare pins — keep place/road labels for
+			// orientation. Set once the Standard style + its config are loaded.
+			map.on("style.load", () => {
 				map!.setConfigProperty(
 					"basemap",
 					"lightPreset",
 					resolvedTheme === "dark" ? "night" : "day",
-				),
-			);
+				);
+				map!.setConfigProperty("basemap", "showPointOfInterestLabels", false);
+				// Flat 2D — no 3D buildings (keep the map calm and legible).
+				map!.setConfigProperty("basemap", "show3dObjects", false);
+			});
 			map.addControl(new mapboxgl.AttributionControl({ compact: true }));
 
+			// Keep it simple: a flat, north-up 2D map. No rotation, no pitch/3D tilt.
+			map.dragRotate.disable();
+			map.touchZoomRotate.disableRotation();
+			map.touchPitch.disable();
+			map.setMaxPitch(0);
+
+			// One reused popup — clicking a pin opens its card; clicking another moves it.
+			const popup = new mapboxgl.Popup({
+				offset: 26,
+				closeButton: true,
+				closeOnClick: true,
+				maxWidth: "260px",
+			});
+
 			for (const p of valid) {
-				const marker = new mapboxgl.Marker({
-					element: makePin(p, showLabels),
-					anchor: "bottom",
-				})
+				const el = makePin(p, showLabels);
+				const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
 					.setLngLat([p.lng, p.lat])
 					.addTo(map);
+				el.addEventListener("click", (e) => {
+					e.stopPropagation();
+					popup
+						.setLngLat([p.lng, p.lat])
+						.setDOMContent(makePinCard(p))
+						.addTo(map!);
+				});
 				markers.push(marker);
 			}
 
