@@ -1,54 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { pool } from "./db";
-
-// Mirrors ingest/search.py. care_type -> SQL predicate over the flag columns.
-const CARE_PREDICATES: Record<string, string> = {
-	long_day_care: "is_long_day_care",
-	preschool: "(is_preschool_stand_alone OR is_preschool_part_of_school)",
-	oshc: "(is_oshc_before_school OR is_oshc_after_school OR is_oshc_vacation_care)",
-	family_day_care: "service_type = 'Family Day Care'",
-};
-
-// NQS ratings worst -> best, so min_rating means "at least this good".
-const RATING_ORDER = [
-	"Significant Improvement Required",
-	"Working Towards NQS",
-	"Meeting NQS",
-	"Exceeding NQS",
-	"Excellent",
-] as const;
-
-function mapsLink(parts: (string | null)[]): string {
-	const q = parts.filter(Boolean).join(", ");
-	return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
-}
-
-// Human-readable service type(s) from the ACECQA flag columns. A single centre can
-// carry several (e.g. long day care + preschool), so join them. Family Day Care is
-// its own service_type; otherwise fall back to the raw value (e.g. Centre-Based Care).
-function serviceTypeLabel(r: {
-	raw_service_type: string | null;
-	is_long_day_care: boolean | null;
-	is_preschool_stand_alone: boolean | null;
-	is_preschool_part_of_school: boolean | null;
-	is_oshc_before_school: boolean | null;
-	is_oshc_after_school: boolean | null;
-	is_oshc_vacation_care: boolean | null;
-}): string | null {
-	if (r.raw_service_type === "Family Day Care") return "Family Day Care";
-	const t: string[] = [];
-	if (r.is_long_day_care) t.push("Long Day Care");
-	if (r.is_preschool_stand_alone || r.is_preschool_part_of_school)
-		t.push("Preschool");
-	if (
-		r.is_oshc_before_school ||
-		r.is_oshc_after_school ||
-		r.is_oshc_vacation_care
-	)
-		t.push("OSHC");
-	return t.length ? t.join(" · ") : r.raw_service_type;
-}
+import { queryCentres, resolveLocationText } from "./search-core";
+import { RATING_ORDER } from "./search-state";
 
 export const resolveLocation = tool({
 	description:
@@ -59,62 +12,7 @@ export const resolveLocation = tool({
 			.string()
 			.describe('A suburb or postcode, e.g. "Bondi" or "2026".'),
 	}),
-	execute: async ({ location }) => {
-		const t = location.trim();
-		if (/^\d{4}$/.test(t)) {
-			const { rows } = await pool.query(
-				`SELECT avg(latitude)::float8 lat, avg(longitude)::float8 lng, count(*)::int n
-         FROM services WHERE postcode = $1 AND latitude IS NOT NULL`,
-				[t],
-			);
-			const r = rows[0];
-			return r?.n
-				? {
-						lat: r.lat,
-						lng: r.lng,
-						label: `postcode ${t}`,
-						kind: "postcode",
-						n: r.n,
-					}
-				: { error: "No centres found there to anchor a search on." };
-		}
-		// Normalise punctuation so "Glebe, NSW" / "Glebe NSW" / "Glebe" all parse cleanly.
-		const cleaned = t.replace(/,/g, " ").replace(/\s+/g, " ").trim();
-		const m = cleaned.match(
-			/^(.*?)(?:\s+(ACT|NSW|NT|QLD|SA|TAS|VIC|WA))?$/i,
-		);
-		const suburb = (m?.[1] ?? cleaned).trim();
-		const state = (m?.[2] ?? "").toUpperCase();
-
-		const lookup = async (withState: boolean) => {
-			const params: unknown[] = [suburb];
-			let sql = `SELECT state, avg(latitude)::float8 lat, avg(longitude)::float8 lng, count(*)::int n
-                 FROM services WHERE upper(suburb) = upper($1) AND latitude IS NOT NULL`;
-			if (withState && state) {
-				sql += ` AND state = $2`;
-				params.push(state);
-			}
-			// Group by state and take the biggest cluster, so a name shared across states
-			// (e.g. Carlton VIC/NSW) resolves to one real place — NOT the meaningless
-			// midpoint of all of them (which lands in rural nowhere and matches nothing).
-			sql += ` GROUP BY state ORDER BY n DESC LIMIT 1`;
-			const { rows } = await pool.query(sql, params);
-			return rows[0];
-		};
-
-		// Prefer suburb+state; fall back to suburb-only if the state guess misses.
-		let r = await lookup(true);
-		if (!r?.n && state) r = await lookup(false);
-		return r?.n
-			? {
-					lat: r.lat,
-					lng: r.lng,
-					label: `${suburb}, ${r.state}`,
-					kind: "suburb",
-					n: r.n,
-				}
-			: { error: "No centres found there to anchor a search on." };
-	},
+	execute: async ({ location }) => resolveLocationText(location),
 });
 
 // A structured channel for the model to emit suggested next questions alongside its
@@ -141,8 +39,6 @@ export const suggestFollowUps = tool({
 	}),
 	execute: async ({ questions }) => ({ questions }),
 });
-
-const MATCH_LABEL = ["no-match", "name-variant", "name-exact"] as const;
 
 export const searchCentres = tool({
 	description:
@@ -199,107 +95,24 @@ export const searchCentres = tool({
 		limit = 10,
 		exclude_ids = [],
 	}) => {
-		const where = [
-			"geog IS NOT NULL",
-			"ST_DWithin(geog, ST_MakePoint($1,$2)::geography, $3)",
-		];
-		const params: unknown[] = [longitude, latitude, radius_km * 1000];
-		if (care_type) where.push(CARE_PREDICATES[care_type]);
-		if (min_rating) {
-			const allowed = RATING_ORDER.slice(
-				RATING_ORDER.indexOf(min_rating),
-			);
-			params.push(allowed);
-			where.push(`overall_rating = ANY($${params.length})`);
-		}
-		// Pagination by exclusion: drop centres the parent has already been shown so a
-		// "show me more" turn returns the NEXT nearest, never repeats. Enforced in SQL so
-		// the no-repeat guarantee doesn't depend on the model counting offsets correctly.
-		if (exclude_ids.length) {
-			params.push(exclude_ids);
-			where.push(`service_approval_number <> ALL($${params.length})`);
-		}
-
-		// Keyword scoring: exact name match (2) > variant match (1) > none (0). We RANK by this,
-		// not filter — so a sparse philosophy (e.g. the ~10 Reggio centres nationally) still falls
-		// back to nearby alternatives instead of an empty screen. The system prompt tells the model
-		// to frame that fallback honestly and never claim an unmatched centre's philosophy.
-		let scoreExpr = "0";
-		if (keyword) {
-			params.push(`%${keyword}%`);
-			const kwIdx = params.length;
-			const variantPatterns = variants
-				.filter(Boolean)
-				.map((v) => `%${v}%`);
-			if (variantPatterns.length) {
-				params.push(variantPatterns);
-				scoreExpr = `CASE WHEN service_name ILIKE $${kwIdx} THEN 2 WHEN service_name ILIKE ANY($${params.length}) THEN 1 ELSE 0 END`;
-			} else {
-				scoreExpr = `CASE WHEN service_name ILIKE $${kwIdx} THEN 2 ELSE 0 END`;
-			}
-		}
-
-		params.push(limit);
-		const limIdx = params.length;
-		// `service_approval_number` is the final tiebreaker so equal-distance centres keep a
-		// deterministic order across calls — paginating via exclude_ids can't reshuffle ties.
-		const orderBy = keyword
-			? `match_score DESC, geog <-> ST_MakePoint($1,$2)::geography, service_approval_number`
-			: `geog <-> ST_MakePoint($1,$2)::geography, service_approval_number`;
-		const { rows } = await pool.query(
-			`SELECT service_name, service_address, suburb, state, postcode, overall_rating,
-              nullif(phone, '') AS phone, operating_hours,
-              latitude::float8 AS latitude, longitude::float8 AS longitude,
-              service_approval_number AS id,
-              number_of_approved_places AS places,
-              service_type AS raw_service_type,
-              is_long_day_care, is_preschool_stand_alone,
-              is_preschool_part_of_school, is_oshc_before_school,
-              is_oshc_after_school, is_oshc_vacation_care,
-              ${scoreExpr} AS match_score,
-              round((ST_Distance(geog, ST_MakePoint($1,$2)::geography)/1000)::numeric, 2)::float8 AS distance_km
-       FROM services
-       WHERE ${where.join(" AND ")}
-       ORDER BY ${orderBy}
-       LIMIT $${limIdx}`,
-			params,
-		);
-		if (!rows.length)
+		// Delegates to the shared search-core so the model tool and the deterministic
+		// /api/search chip path run the EXACT same SQL — chat and filters never drift.
+		const centres = await queryCentres({
+			lat: latitude,
+			lng: longitude,
+			radiusKm: radius_km,
+			careType: care_type ?? null,
+			minRating: min_rating ?? null,
+			keyword: keyword ?? null,
+			variants,
+			sort: "distance",
+			limit,
+			excludeIds: exclude_ids,
+		});
+		if (!centres.length)
 			return {
 				error: "No centres matched — try a wider radius or fewer filters.",
 			};
-		return rows.map((r) => {
-			const {
-				match_score,
-				raw_service_type,
-				is_long_day_care,
-				is_preschool_stand_alone,
-				is_preschool_part_of_school,
-				is_oshc_before_school,
-				is_oshc_after_school,
-				is_oshc_vacation_care,
-				...rest
-			} = r;
-			return {
-				...rest,
-				service_type: serviceTypeLabel({
-					raw_service_type,
-					is_long_day_care,
-					is_preschool_stand_alone,
-					is_preschool_part_of_school,
-					is_oshc_before_school,
-					is_oshc_after_school,
-					is_oshc_vacation_care,
-				}),
-				...(keyword ? { match: MATCH_LABEL[match_score] } : {}),
-				maps_link: mapsLink([
-					r.service_name,
-					r.service_address,
-					r.suburb,
-					r.state,
-					r.postcode,
-				]),
-			};
-		});
+		return centres;
 	},
 });
