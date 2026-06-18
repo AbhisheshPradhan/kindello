@@ -119,6 +119,14 @@ export function FinderApp() {
 		[sendMessage, model, state],
 	);
 
+	// Land on results immediately: run the default (Sydney) search once on mount.
+	const didInit = useRef(false);
+	useEffect(() => {
+		if (didInit.current) return;
+		didInit.current = true;
+		if (canSearch(state)) void runDeterministic(state);
+	}, [state, runDeterministic]);
+
 	// Mirror the AI's actions into the canonical state, then refresh the canvas. Guarded by
 	// the message id so a completed turn is only synced once.
 	const syncedId = useRef<string | null>(null);
@@ -143,7 +151,7 @@ export function FinderApp() {
 			<SiteHeader />
 			<div className="flex flex-1 min-h-0">
 				{/* AI rail — desktop: fixed left column. */}
-				<aside className="hidden md:flex md:w-[380px] lg:w-[420px] flex-none border-r border-border">
+				<aside className="hidden md:flex md:w-95 lg:w-105 flex-none border-r border-border">
 					<ConversationRail
 						messages={messages}
 						busy={busy}

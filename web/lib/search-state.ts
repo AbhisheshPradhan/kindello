@@ -55,6 +55,14 @@ export type SearchState = {
 	intent: SoftIntent;
 };
 
+// With no suburb/postcode entered yet, anchor on Sydney CBD (postcode 2000) so the map
+// lands on results instead of an empty screen. Centroid of our geocoded 2000 centres.
+export const DEFAULT_LOCATION: ResolvedLocation = {
+	label: "Sydney, NSW",
+	lat: -33.866931,
+	lng: 151.206286,
+};
+
 export const DEFAULT_RADIUS_KM = 5;
 // The canvas is the "directory" surface, so it shows the full filtered set (capped),
 // not the curated 3-5 the AI narrates in the rail.
@@ -65,7 +73,7 @@ export const MAX_RADIUS_KM = 30;
 
 export function defaultSearchState(): SearchState {
 	return {
-		location: null,
+		location: DEFAULT_LOCATION,
 		careType: null,
 		minRating: null,
 		radiusKm: DEFAULT_RADIUS_KM,
