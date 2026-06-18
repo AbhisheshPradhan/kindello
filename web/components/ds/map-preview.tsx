@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import type { CSSProperties, ReactNode } from "react";
 
 export type MapPoint = {
@@ -10,15 +11,18 @@ export type MapPoint = {
 };
 
 /**
- * MapPreview — a styled map stand-in with teal rating pins, positioned from
- * real lat/lng. The design system ships map *placeholders*; this keeps that
- * look (warm teal wash + faint road grid + pins) until a Mapbox token is wired.
- *
- * PRODUCTION SWAP → Mapbox GL:
- *   Set NEXT_PUBLIC_MAPBOX_TOKEN, `npm i mapbox-gl`, and replace the placeholder
- *   block below with a <Map> initialised to fitBounds(points) using a light
- *   street style, dropping teal rating markers at each [lng, lat]. The pin /
- *   bounds maths here (normalise()) ports directly to marker placement.
+ * Real map (Mapbox GL) — lazy-loaded so mapbox-gl + its CSS only ship when a
+ * token is present. `ssr: false` because mapbox-gl touches `window`.
+ */
+const MapboxMap = dynamic(() => import("./mapbox-map"), { ssr: false });
+
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+
+/**
+ * MapPreview — renders a real Mapbox GL map when NEXT_PUBLIC_MAPBOX_TOKEN is
+ * set, otherwise falls back to a styled placeholder (warm teal wash + faint
+ * road grid + rating pins) so nothing breaks locally without a token. The
+ * MapPoint/props API is identical for both paths, so callers never change.
  */
 function normalise(
 	points: MapPoint[],
@@ -47,7 +51,7 @@ function normalise(
 	}));
 }
 
-function pinTone(rating?: number | string | null): string {
+export function pinTone(rating?: number | string | null): string {
 	if (typeof rating === "string") {
 		if (rating === "Excellent" || rating === "Exceeding NQS")
 			return "var(--teal-500)";
@@ -60,6 +64,7 @@ function pinTone(rating?: number | string | null): string {
 
 export function MapPreview({
 	points = [],
+	center,
 	height = 220,
 	rounded = "var(--radius-xl)",
 	showLabels = false,
@@ -67,6 +72,12 @@ export function MapPreview({
 	style,
 }: {
 	points?: MapPoint[];
+	/**
+	 * Anchor the view here (the searched suburb centroid) instead of the pin
+	 * centroid: keeps the suburb dead-center and zooms to the tightest level
+	 * that still shows every pin. Omit to fall back to fitting the pins.
+	 */
+	center?: { lat: number; lng: number } | null;
 	height?: number | string;
 	rounded?: string;
 	showLabels?: boolean;
@@ -75,6 +86,7 @@ export function MapPreview({
 	style?: CSSProperties;
 }) {
 	const placed = normalise(points);
+	const useMapbox = Boolean(MAPBOX_TOKEN) && placed.length > 0;
 	return (
 		<div
 			aria-hidden={!points.length}
@@ -87,6 +99,34 @@ export function MapPreview({
 				...style,
 			}}
 		>
+			{useMapbox ? (
+				<MapboxMap
+					points={points}
+					center={center}
+					showLabels={showLabels}
+				/>
+			) : (
+				<MapPlaceholder
+					placed={placed}
+					showLabels={showLabels}
+				/>
+			)}
+
+			{children}
+		</div>
+	);
+}
+
+/** The styled stand-in: warm teal wash + faint road grid + rating pins. */
+function MapPlaceholder({
+	placed,
+	showLabels,
+}: {
+	placed: { x: number; y: number; p: MapPoint }[];
+	showLabels: boolean;
+}) {
+	return (
+		<>
 			{/* Faint road grid */}
 			<svg
 				width="100%"
@@ -154,8 +194,6 @@ export function MapPreview({
 					</span>
 				</span>
 			))}
-
-			{children}
-		</div>
+		</>
 	);
 }
