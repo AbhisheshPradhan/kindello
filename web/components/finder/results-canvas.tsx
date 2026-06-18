@@ -184,13 +184,15 @@ export function ResultsCanvas({
 			)}
 
 			{view === "map" ? (
-				<div className="flex flex-col gap-3 flex-1 min-h-0">
-					<MapPreview points={points} center={result?.center} height={420} showLabels />
-					{centres.length > 0 && (
-						<div className="overflow-y-auto">
-							<CentreGrid centres={centres} />
-						</div>
-					)}
+				// Map-first (realestate.com.au style): the map fills the canvas; cards are
+				// hidden here and live on the List tab so the map gets the full height.
+				<div className="flex-1 min-h-0">
+					<MapPreview
+						points={points}
+						center={result?.center}
+						height="100%"
+						showLabels
+					/>
 				</div>
 			) : (
 				<div className="overflow-y-auto flex-1 min-h-0">
