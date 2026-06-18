@@ -375,7 +375,11 @@ function AnswerTurn({
 	const ready = !streaming || text.length > 0 || centres.length > 0;
 	const points = mapPoints(centres, loc);
 	const answerBody = splitLeakedFollowUps(text).body;
-	const shown = centres.slice(0, 3);
+	// Show the full curated set the model returned (it caps itself at the best 3-5, or an
+	// explicit count the parent asked for) so the floating cards, the map pins and the
+	// Places tab all show the SAME centres. Capping cards here while pinning every centre
+	// was what produced "5 pins under 3 cards".
+	const shown = centres;
 	const badges = centreBadges(shown);
 
 	return (
