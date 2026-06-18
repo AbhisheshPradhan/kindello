@@ -191,7 +191,6 @@ export function ResultsCanvas({
 						points={points}
 						center={result?.center}
 						height="100%"
-						showLabels
 					/>
 				</div>
 			) : (

@@ -23,6 +23,8 @@ function isValid(p: MapPoint) {
 function makePin(p: MapPoint, showLabels: boolean): HTMLElement {
 	const wrap = document.createElement("div");
 	wrap.className = "flex flex-col items-center";
+	// Name stays discoverable on hover even when labels are off, without cluttering the map.
+	if (p.label) wrap.title = p.label;
 
 	if (showLabels && p.label) {
 		const label = document.createElement("span");
