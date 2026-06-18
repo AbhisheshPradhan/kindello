@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { flushSync } from "react-dom";
 import { useTheme } from "next-themes";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { type MapPoint, type MapRegion } from "./map-preview";
@@ -359,8 +360,12 @@ export default function MapboxMap({
 
 				const container = document.createElement("div");
 				cardRootRef.current?.unmount();
-				cardRootRef.current = createRoot(container);
-				cardRootRef.current.render(<PinCard p={p} />);
+				const root = createRoot(container);
+				// flushSync so the card is fully rendered (real size) BEFORE Mapbox measures
+				// it to choose the popup anchor — otherwise it positions an empty popup and
+				// the card overflows the map edge.
+				flushSync(() => root.render(<PinCard p={p} />));
+				cardRootRef.current = root;
 				switchingRef.current = true; // guard the close from addTo()'s internal remove()
 				popup.setLngLat([p.lng, p.lat]).setDOMContent(container).addTo(map);
 				switchingRef.current = false;
