@@ -31,7 +31,7 @@ export function FollowUps({
 				<button
 					key={i}
 					onClick={() => onSelect(q)}
-					className="flex items-center gap-3.5 w-full py-3.5 px-0.5 bg-none border-none border-t text-left font-sans text-[15.5px] text-body transition-colors duration-150 hover:text-teal-700"
+					className="flex items-center gap-3.5 w-full py-2 px-0.5 bg-none border-none border-t border-border/50 text-left font-sans text-[15.5px] text-body transition-colors duration-150 hover:text-teal-700"
 				>
 					<span className="text-muted-foreground flex-none inline-flex">
 						<svg

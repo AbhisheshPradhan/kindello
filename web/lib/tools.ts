@@ -118,10 +118,11 @@ export const resolveLocation = tool({
 });
 
 // A structured channel for the model to emit suggested next questions alongside its
-// answer. No `execute` on purpose: it isn't run server-side — the model's call just
-// carries the questions as `input`, which the client reads to render the FollowUps
-// list. Optional by design (see system prompt): the model only calls it when a
-// genuinely useful refinement exists, so we never show forced/irrelevant follow-ups.
+// answer. The client reads the questions off the call `input` to render the FollowUps
+// chips. It carries a trivial `execute` that just echoes the questions back: without a
+// result, a follow-up turn resends a tool call with no matching tool result and OpenAI
+// rejects the history (AI_MissingToolResultsError). Echoing satisfies that requirement
+// while changing nothing the model needs to reason about.
 export const suggestFollowUps = tool({
 	description:
 		"Offer 2-3 suggested next questions the parent could tap, phrased in their voice (first " +
@@ -138,6 +139,7 @@ export const suggestFollowUps = tool({
 			.max(3)
 			.describe("2-3 short tappable follow-up questions in the parent's voice."),
 	}),
+	execute: async ({ questions }) => ({ questions }),
 });
 
 const MATCH_LABEL = ["no-match", "name-variant", "name-exact"] as const;

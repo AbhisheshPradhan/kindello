@@ -2,6 +2,7 @@
 
 import type { UIMessage } from "ai";
 import type { ReactNode } from "react";
+import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { ConversationTabs } from "@/components/ds/conversation-tabs";
 import {
@@ -71,6 +72,33 @@ function messageFollowUps(m: UIMessage): string[] {
 		}
 	}
 	return [];
+}
+
+// gpt-4o-mini (the default model) often ignores "call suggestFollowUps" and instead
+// writes the follow-ups as prose ("...here are a couple of follow-up questions: Q1?
+// Q2?"). Detect that trailer by its explicit "follow-up question(s)" marker, strip it
+// from the displayed answer, and recover the questions so they still render as
+// clickable chips. A legitimate single trailing question (no marker) is left alone.
+function splitLeakedFollowUps(text: string): {
+	body: string;
+	questions: string[];
+} {
+	const m = text.match(/(^|\n)[^\n]*follow[\s-]?up questions?\b[^\n]*/i);
+	if (!m || m.index == null) return { body: text, questions: [] };
+	const cut = m.index + (m[1] ? 1 : 0); // skip a captured leading newline
+	const body = text.slice(0, cut).trimEnd();
+	const tail = text.slice(cut);
+	const questions = (tail.match(/[^\n?]*\?/g) ?? [])
+		.map((q) => q.replace(/^[\s\d.)*_>•-]+/, "").trim())
+		.filter((q) => q.length > 6 && q.length <= 120);
+	return { body, questions: questions.slice(0, 3) };
+}
+
+// Tool call wins; otherwise fall back to questions the model leaked into prose.
+function followUpsFor(m: UIMessage): string[] {
+	const tool = messageFollowUps(m);
+	if (tool.length) return tool;
+	return splitLeakedFollowUps(messageText(m)).questions;
 }
 
 function messageLocation(m: UIMessage): Loc | null {
@@ -341,10 +369,12 @@ function AnswerTurn({
 	streaming: boolean;
 	onSeeMore: () => void;
 }) {
-	// Load the message text first, then reveal the map/cards — so results stream
-	// in after the intro rather than flashing in before it.
-	const ready = !streaming || text.length > 0;
+	// Reveal the map/cards as soon as searchCentres has returned rows — don't wait
+	// for the model's intro text (that's the LAST step, so gating on it left results
+	// hidden behind the "Searching…" dots even though the data had already arrived).
+	const ready = !streaming || text.length > 0 || centres.length > 0;
 	const points = mapPoints(centres, loc);
+	const answerBody = splitLeakedFollowUps(text).body;
 	const shown = centres.slice(0, 3);
 	const badges = centreBadges(shown);
 
@@ -433,7 +463,24 @@ function AnswerTurn({
 				</div>
 			)}
 
-			{text && <Markdown className="ds-answer-prose">{text}</Markdown>}
+			{streaming && !answerBody && centres.length > 0 && (
+				<div className="inline-flex items-center gap-2 text-muted-foreground text-sm">
+					<span className="inline-flex gap-0.75">
+						{[0, 1, 2].map((i) => (
+							<span
+								key={i}
+								className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-[typing_1s_infinite]"
+								style={{ animationDelay: `${i * 0.15}s` }}
+							/>
+						))}
+					</span>
+					Writing answer…
+				</div>
+			)}
+
+			{answerBody && (
+				<Markdown className="ds-answer-prose">{answerBody}</Markdown>
+			)}
 
 			{ready && (
 				<div className="flex gap-2 flex-wrap">
@@ -501,7 +548,7 @@ export function ChatView({
 			if (c.length) lastCentres = c;
 			const l = messageLocation(m);
 			if (l) lastLoc = l;
-			const f = messageFollowUps(m);
+			const f = followUpsFor(m);
 			if (f.length) lastFollowUps = f;
 		}
 	}
@@ -509,7 +556,31 @@ export function ChatView({
 	const lastMsg = messages[messages.length - 1];
 	const lastAssistantText =
 		lastMsg?.role === "assistant" ? messageText(lastMsg) : "";
-	const showThinking = busy && !lastAssistantText;
+	// Hide the "Searching…" dots once the in-progress turn has produced anything to
+	// show — text OR centre results (the cards now render before the intro text).
+	const lastAssistantCentres =
+		lastMsg?.role === "assistant" ? messageCentres(lastMsg).length : 0;
+	const showThinking = busy && !lastAssistantText && !lastAssistantCentres;
+
+	// Smoothly scroll to the bottom each time the user sends a message (the page
+	// itself scrolls; the composer is sticky). One-time per send — we deliberately
+	// do NOT follow the streaming answer (auto-follow was removed earlier).
+	const userTurns = messages.reduce(
+		(n, m) => n + (m.role === "user" ? 1 : 0),
+		0,
+	);
+	const prevUserTurns = useRef(userTurns);
+	useEffect(() => {
+		if (userTurns > prevUserTurns.current) {
+			requestAnimationFrame(() =>
+				window.scrollTo({
+					top: document.documentElement.scrollHeight,
+					behavior: "smooth",
+				}),
+			);
+		}
+		prevUserTurns.current = userTurns;
+	}, [userTurns]);
 
 	return (
 		<div className="w-full flex flex-col flex-1">
