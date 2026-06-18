@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { useTheme } from "next-themes";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { type MapPoint, pinTone } from "./map-preview";
+import { type MapPoint } from "./map-preview";
+import { pinSvg, type PinState } from "./rating-pin";
+import { PinCard } from "@/components/finder/pin-card";
 
 const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -19,92 +22,29 @@ function isValid(p: MapPoint) {
 	return Number.isFinite(p.lat) && Number.isFinite(p.lng);
 }
 
-/** Build a teardrop pin matching the placeholder's pins (same Tailwind classes). */
-// The card shown when a pin is clicked. The WHOLE card is a link that opens the centre's
-// detail page in a NEW TAB. Built via DOM (not innerHTML) so centre names can't inject markup.
-function makePinCard(p: MapPoint): HTMLElement {
-	const card = document.createElement(p.id ? "a" : "div") as HTMLAnchorElement;
-	card.className =
-		"group block w-64 p-4 no-underline rounded-2xl bg-card text-foreground";
-	if (p.id) {
-		card.href = `/centre/${p.id}`;
-		card.target = "_blank";
-		card.rel = "noopener noreferrer";
-	}
-
-	const name = document.createElement("div");
-	name.className =
-		"font-semibold text-[15px] leading-snug pr-5 text-foreground transition-colors group-hover:text-teal-700";
-	name.textContent = p.label ?? "Centre";
-	card.appendChild(name);
-
-	if (p.serviceType) {
-		const type = document.createElement("div");
-		type.className =
-			"mt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground";
-		type.textContent = p.serviceType;
-		card.appendChild(type);
-	}
-
-	if (typeof p.rating === "string" && p.rating) {
-		const tone = pinTone(p.rating);
-		const badge = document.createElement("div");
-		badge.className =
-			"inline-flex items-center gap-1.5 mt-2.5 px-2.5 py-1 rounded-full text-[12px] font-semibold";
-		badge.style.background = `color-mix(in srgb, ${tone} 14%, transparent)`;
-		badge.style.color = `color-mix(in srgb, ${tone} 70%, var(--foreground))`;
-		const dot = document.createElement("span");
-		dot.className = "w-2 h-2 rounded-full";
-		dot.style.background = tone;
-		badge.appendChild(dot);
-		badge.appendChild(document.createTextNode(p.rating));
-		card.appendChild(badge);
-	}
-
-	if (p.address) {
-		const addr = document.createElement("div");
-		addr.className =
-			"mt-2.5 flex items-start gap-1.5 text-[12px] text-muted-foreground leading-snug";
-		const dot = document.createElement("span");
-		dot.textContent = "📍";
-		dot.className = "shrink-0 grayscale opacity-60 text-[11px] leading-[1.3]";
-		const txt = document.createElement("span");
-		txt.textContent = p.address;
-		addr.appendChild(dot);
-		addr.appendChild(txt);
-		card.appendChild(addr);
-	}
-
-	return card;
+// The pin SVG + tier styling live in the reusable ./rating-pin module. Here we just paint
+// it onto a marker element and manage interaction state.
+function renderPin(el: HTMLElement, p: MapPoint, state: PinState) {
+	el.innerHTML = pinSvg(p.rating, state);
 }
 
-function makePin(p: MapPoint, showLabels: boolean): HTMLElement {
-	const wrap = document.createElement("div");
-	wrap.className = "flex flex-col items-center cursor-pointer";
-	// Name stays discoverable on hover even when labels are off, without cluttering the map.
-	if (p.label) wrap.title = p.label;
-
-	if (showLabels && p.label) {
-		const label = document.createElement("span");
-		label.className =
-			"mb-1 px-1.75 py-0.5 text-[11px] font-semibold whitespace-nowrap text-foreground bg-card rounded-full shadow-sm";
-		label.textContent = p.label;
-		wrap.appendChild(label);
+// Viewed centres persist in localStorage so "already looked at" survives filter changes,
+// refreshes and sessions. (Clean path to a per-user DB column once accounts exist.)
+const VIEWED_KEY = "kindello:viewed";
+function loadViewed(): Set<string> {
+	try {
+		const raw = localStorage.getItem(VIEWED_KEY);
+		return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+	} catch {
+		return new Set();
 	}
-
-	const pin = document.createElement("span");
-	// Sharp corner is bottom-left (border-radius 0 there); rotate -45deg so the point
-	// faces straight DOWN onto the coordinate (the marker anchor is "bottom").
-	pin.className =
-		"flex items-center justify-center w-5.5 h-5.5 border-2 border-white rounded-[50%_50%_50%_0] -rotate-45 shadow-[0_2px_5px_rgba(0,0,0,.28)]";
-	pin.style.background = pinTone(p.rating);
-
-	const dot = document.createElement("span");
-	dot.className = "w-1.5 h-1.5 rounded-full bg-white rotate-45";
-	pin.appendChild(dot);
-	wrap.appendChild(pin);
-
-	return wrap;
+}
+function persistViewed(viewed: Set<string>) {
+	try {
+		localStorage.setItem(VIEWED_KEY, JSON.stringify([...viewed]));
+	} catch {
+		/* ignore quota / unavailable */
+	}
 }
 
 /**
@@ -144,6 +84,8 @@ export default function MapboxMap({
 		// mapbox map + markers are created in the async block; typed loosely here.
 		let map: import("mapbox-gl").Map | undefined;
 		let markers: import("mapbox-gl").Marker[] = [];
+		// React root mounted into the popup card; unmounted on close/content-change/teardown.
+		let cardRoot: Root | null = null;
 
 		(async () => {
 			const mapboxgl = (await import("mapbox-gl")).default;
@@ -190,18 +132,62 @@ export default function MapboxMap({
 				className: "kindello-pin-popup",
 			});
 
+			const viewed = loadViewed();
+			// The currently-selected pin (popup open). Cleared/marked-visited on dismiss.
+			let selected: { id?: string; el: HTMLElement; p: MapPoint } | null = null;
+
+			const baseState = (p: MapPoint): PinState =>
+				p.id && viewed.has(p.id) ? "visited" : "default";
+
+			const deselect = (markVisited: boolean) => {
+				if (!selected) return;
+				if (markVisited && selected.id) {
+					viewed.add(selected.id);
+					persistViewed(viewed);
+				}
+				renderPin(selected.el, selected.p, baseState(selected.p));
+				selected = null;
+			};
+
+			// Dismissing the popup (X, map click, Esc) marks the open centre as visited.
+			popup.on("close", () => {
+				deselect(true);
+				cardRoot?.unmount();
+				cardRoot = null;
+			});
+
 			for (const p of valid) {
-				const el = makePin(p, showLabels);
+				const el = document.createElement("div");
+				el.className = "cursor-pointer";
+				if (p.label) el.title = p.label;
+				renderPin(el, p, baseState(p));
+
 				const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
 					.setLngLat([p.lng, p.lat])
 					.addTo(map);
+
+				el.addEventListener("mouseenter", () => {
+					if (selected?.el === el) return;
+					renderPin(el, p, "hover");
+				});
+				el.addEventListener("mouseleave", () => {
+					if (selected?.el === el) return;
+					renderPin(el, p, baseState(p));
+				});
 				el.addEventListener("click", (e) => {
 					e.stopPropagation();
-					popup
-						.setLngLat([p.lng, p.lat])
-						.setDOMContent(makePinCard(p))
-						.addTo(map!);
+					if (selected?.el === el) return; // already open
+					deselect(true); // previous open pin becomes visited
+					selected = { id: p.id, el, p };
+					renderPin(el, p, "selected");
+
+					const container = document.createElement("div");
+					cardRoot?.unmount();
+					cardRoot = createRoot(container);
+					cardRoot.render(<PinCard p={p} />);
+					popup.setLngLat([p.lng, p.lat]).setDOMContent(container).addTo(map!);
 				});
+
 				markers.push(marker);
 			}
 
@@ -253,6 +239,12 @@ export default function MapboxMap({
 			cancelled = true;
 			for (const m of markers) m.remove();
 			markers = [];
+			// Defer unmount: React forbids unmounting a root while React is mid-render.
+			if (cardRoot) {
+				const root = cardRoot;
+				cardRoot = null;
+				setTimeout(() => root.unmount(), 0);
+			}
 			if (map) map.remove();
 		};
 	}, [ptsKey, resolvedTheme, showLabels]);

@@ -5,6 +5,7 @@ import { Icon } from "@/components/ds/icon";
 import { MapPreview } from "@/components/ds/map-preview";
 import { PlaceResultCard } from "@/components/ds/place-result-card";
 import type { Centre } from "@/components/centre-card";
+import { summariseHours } from "@/lib/format";
 import type { Facets, SearchResult } from "@/lib/search-core";
 import {
 	MAX_RADIUS_KM,
@@ -142,6 +143,7 @@ export function ResultsCanvas({
 				[c.service_address, c.suburb, c.state, c.postcode]
 					.filter(Boolean)
 					.join(", ") || null,
+			hours: summariseHours(c.operating_hours),
 			id: c.id,
 		}));
 

@@ -11,6 +11,7 @@ export type MapPoint = {
 	// Optional details for the click-to-open pin card (Finder map).
 	address?: string | null;
 	serviceType?: string | null;
+	hours?: string | null;
 	id?: string;
 };
 
