@@ -27,6 +27,7 @@ export const MODELS: ModelInfo[] = [
 	},
 ];
 
-// gpt-4o-mini is the working default today (the Anthropic account is out of
-// credits). Flip to a claude-* id here once credits + the env key are sorted.
-export const DEFAULT_MODEL = "gpt-4o-mini";
+// gpt-4o is the public default: reliable enough at tool-calling and instruction-
+// following for the model-driven flow, while staying affordable at parent-facing
+// public scale (mini is too weak; the premium models are too costly for public use).
+export const DEFAULT_MODEL = "gpt-4o";
