@@ -5,12 +5,11 @@ export type Provider = "anthropic" | "openai" | "google";
 export type ModelInfo = { id: string; label: string; provider: Provider };
 
 // Add/remove freely — each just needs that provider's key in .env.local.
-// (OpenAI/Google ids are conservative defaults; swap in whatever you have access to.)
+// Gemini is intentionally omitted: there's no GOOGLE_GENERATIVE_AI_API_KEY set,
+// so those options would only error. Re-add the google entries once a key exists.
 export const MODELS: ModelInfo[] = [
 	{ id: "gpt-4o-mini", label: "GPT-4o mini", provider: "openai" },
 	{ id: "gpt-4o", label: "GPT-4o", provider: "openai" },
-	{ id: "gemini-1.5-flash", label: "Gemini 1.5 Flash", provider: "google" },
-	{ id: "gemini-1.5-pro", label: "Gemini 1.5 Pro", provider: "google" },
 	{
 		id: "claude-haiku-4-5",
 		label: "Claude Haiku 4.5 (fast/cheap)",
@@ -28,4 +27,6 @@ export const MODELS: ModelInfo[] = [
 	},
 ];
 
+// gpt-4o-mini is the working default today (the Anthropic account is out of
+// credits). Flip to a claude-* id here once credits + the env key are sorted.
 export const DEFAULT_MODEL = "gpt-4o-mini";

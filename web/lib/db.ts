@@ -4,4 +4,7 @@ import { Pool } from "pg";
 const g = globalThis as unknown as { _kindelloPool?: Pool };
 
 export const pool: Pool =
-  g._kindelloPool ?? (g._kindelloPool = new Pool({ connectionString: process.env.DATABASE_URL }));
+	g._kindelloPool ??
+	(g._kindelloPool = new Pool({
+		connectionString: process.env.DATABASE_URL,
+	}));

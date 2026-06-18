@@ -84,6 +84,7 @@ kindello/
 - **Commits:** do NOT add a `Co-Authored-By: Claude` trailer (or any AI co-author line) to commit messages. Commit only when explicitly asked.
 - **Browser/Playwright:** do NOT launch Playwright or drive the browser to verify changes unless the user asks for it, or you've asked permission first. Prefer reasoning, typecheck, or build to confirm a change; reach for the browser only on request.
 - **Secrets:** real credentials live ONLY in `ingest/.env` (git-ignored). `.env.example` stays placeholder-only — `.env.example` IS committed.
+- **PoC phase — skip technical SEO:** we're a proof-of-concept, not a public production site yet. Do NOT spend effort on indexation, XML sitemaps, `robots.txt`, canonicals, or structured-data/JSON-LD plumbing. Focus the web work on **copywriting and page structure** (clarity, tonality, content hierarchy, honesty of claims). Revisit the technical-SEO layer only when we go to production.
 - **Schema-from-real-data:** inspect actual CSV columns before designing tables; don't guess the schema.
 - Keep all project files inside this repo. Postgres binaries / `brew` are system-level (unavoidable).
 - Design lat/lng as plain numeric now; upgrade to PostGIS `geography` later without a rewrite.

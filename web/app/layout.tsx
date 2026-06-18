@@ -16,11 +16,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
 	metadataBase: new URL("https://kindello.com.au"),
 	title: {
-		default: "Kindello — find approved childcare anywhere in Australia",
+		default: "Kindello: find approved childcare anywhere in Australia",
 		template: "%s",
 	},
 	description:
-		"Find approved childcare anywhere in Australia. Compare NQS ratings, approved places and care types — synced daily from ACECQA.",
+		"Find approved childcare anywhere in Australia. Compare NQS ratings, approved places and care types, synced daily from ACECQA.",
 	icons: {
 		icon: [
 			{ url: "/favicon.ico", sizes: "any" },
