@@ -179,6 +179,14 @@ export const searchCentres = tool({
 					'conceptual synonyms (e.g. "child-led" for Montessori) — those never appear in names.',
 			),
 		limit: z.number().optional().describe("Max results (default 10)."),
+		exclude_ids: z
+			.array(z.string())
+			.optional()
+			.describe(
+				"Centre ids (the `id` field from earlier results) to leave out. Pass every id " +
+					"already shown this conversation when the parent asks to see MORE / different " +
+					"centres, so the next batch never repeats one they've seen.",
+			),
 	}),
 	execute: async ({
 		latitude,
@@ -189,6 +197,7 @@ export const searchCentres = tool({
 		keyword,
 		variants = [],
 		limit = 10,
+		exclude_ids = [],
 	}) => {
 		const where = [
 			"geog IS NOT NULL",
@@ -202,6 +211,13 @@ export const searchCentres = tool({
 			);
 			params.push(allowed);
 			where.push(`overall_rating = ANY($${params.length})`);
+		}
+		// Pagination by exclusion: drop centres the parent has already been shown so a
+		// "show me more" turn returns the NEXT nearest, never repeats. Enforced in SQL so
+		// the no-repeat guarantee doesn't depend on the model counting offsets correctly.
+		if (exclude_ids.length) {
+			params.push(exclude_ids);
+			where.push(`service_approval_number <> ALL($${params.length})`);
 		}
 
 		// Keyword scoring: exact name match (2) > variant match (1) > none (0). We RANK by this,
@@ -225,9 +241,11 @@ export const searchCentres = tool({
 
 		params.push(limit);
 		const limIdx = params.length;
+		// `service_approval_number` is the final tiebreaker so equal-distance centres keep a
+		// deterministic order across calls — paginating via exclude_ids can't reshuffle ties.
 		const orderBy = keyword
-			? `match_score DESC, geog <-> ST_MakePoint($1,$2)::geography`
-			: `geog <-> ST_MakePoint($1,$2)::geography`;
+			? `match_score DESC, geog <-> ST_MakePoint($1,$2)::geography, service_approval_number`
+			: `geog <-> ST_MakePoint($1,$2)::geography, service_approval_number`;
 		const { rows } = await pool.query(
 			`SELECT service_name, service_address, suburb, state, postcode, overall_rating,
               nullif(phone, '') AS phone, operating_hours,
