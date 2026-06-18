@@ -157,7 +157,12 @@ export function CriteriaBar({
 						active={state.radiusKm !== 5}
 						onChange={(v) => onChange({ radiusKm: Number(v) })}
 					>
-						{RADII.map((r) => (
+						{/* Presets, plus the current value if map navigation set an
+						    off-preset radius (e.g. 7 km), so the chip shows it truthfully. */}
+						{(RADII.includes(state.radiusKm)
+							? RADII
+							: [...RADII, state.radiusKm].sort((a, b) => a - b)
+						).map((r) => (
 							<option key={r} value={r}>
 								Within {r} km
 							</option>
