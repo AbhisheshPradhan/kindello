@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Icon } from "./icon";
 import {
 	CARE_TYPE_LABEL,
+	DEFAULT_LOCATION,
 	SIZE_LABEL,
 	SORT_LABEL,
 	type CareType,
@@ -72,24 +73,37 @@ export function CriteriaBar({
 	onResolve: (text: string) => void;
 }) {
 	const [loc, setLoc] = useState("");
+	const [editing, setEditing] = useState(false);
 
 	const submitLoc = () => {
 		const t = loc.trim();
 		if (t) onResolve(t);
+		setEditing(false);
 	};
 
 	return (
 		<div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2.5">
-			{/* Location — the required anchor. Pill when set, input when not. */}
-			{state.location ? (
-				<span className="inline-flex items-center gap-1.5 shrink-0 rounded-full bg-teal-500 text-white text-[13px] font-semibold leading-none pl-2.5 pr-1.5 py-1.5">
-					<Icon name="map-pin" size={13} />
-					{state.location.label}
+			{/* Location — the required anchor. Always set (clearing resets to the Sydney
+			    default, never an empty map). Click the chip to type a new suburb. */}
+			{state.location && !editing ? (
+				<span className="inline-flex items-center gap-1.5 shrink-0 rounded-full bg-teal-500 text-white text-[13px] font-semibold leading-none pl-1 pr-1.5 py-1.5">
 					<button
 						type="button"
-						aria-label="Clear location"
 						onClick={() => {
-							onChange({ location: null });
+							setLoc("");
+							setEditing(true);
+						}}
+						className="inline-flex items-center gap-1.5 rounded-full pl-1.5 pr-1 py-0.5 hover:bg-white/15"
+						title="Change location"
+					>
+						<Icon name="map-pin" size={13} />
+						{state.location.label}
+					</button>
+					<button
+						type="button"
+						aria-label="Reset to Sydney"
+						onClick={() => {
+							onChange({ location: DEFAULT_LOCATION });
 							setLoc("");
 						}}
 						className="inline-flex items-center justify-center w-4.5 h-4.5 rounded-full hover:bg-white/20"
@@ -101,14 +115,20 @@ export function CriteriaBar({
 				<div className="inline-flex items-center gap-1.5 shrink-0 rounded-full border border-border bg-card pl-3 pr-1 py-1">
 					<Icon name="map-pin" size={13} className="opacity-60" />
 					<input
+						autoFocus
 						value={loc}
 						onChange={(e) => setLoc(e.target.value)}
-						onKeyDown={(e) => e.key === "Enter" && submitLoc()}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") submitLoc();
+							if (e.key === "Escape") setEditing(false);
+						}}
+						onBlur={() => setEditing(false)}
 						placeholder="Suburb or postcode"
 						className="bg-transparent text-[13px] w-36 focus:outline-none placeholder:text-muted-foreground"
 					/>
 					<button
 						type="button"
+						onMouseDown={(e) => e.preventDefault()} // keep focus so onBlur doesn't cancel first
 						onClick={submitLoc}
 						disabled={resolving || !loc.trim()}
 						className="inline-flex items-center justify-center rounded-full bg-teal-500 text-white px-2.5 py-1.25 text-[12px] font-semibold disabled:opacity-40"
