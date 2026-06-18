@@ -1,0 +1,16 @@
+/* Kindello — Elevation tokens
+ * Soft, warm, low-contrast shadows. Cards sit on a subtle shadow-sm;
+ * the hero composer lifts with shadow-lg. Hover raises elevation slightly.
+ */
+
+:root {
+  --shadow-xs: 0 1px 2px rgba(31, 32, 28, 0.05);
+  --shadow-sm: 0 1px 3px rgba(31, 32, 28, 0.06), 0 1px 2px rgba(31, 32, 28, 0.04);
+  --shadow-md: 0 4px 12px rgba(31, 32, 28, 0.07), 0 2px 4px rgba(31, 32, 28, 0.04);
+  --shadow-lg: 0 12px 28px rgba(31, 32, 28, 0.10), 0 4px 10px rgba(31, 32, 28, 0.05);
+  --shadow-xl: 0 24px 48px rgba(31, 32, 28, 0.12), 0 8px 16px rgba(31, 32, 28, 0.06);
+
+  /* Brand glow — used sparingly on the hero composer focus + primary CTAs */
+  --shadow-teal: 0 8px 24px rgba(28, 166, 166, 0.18);
+  --shadow-coral: 0 8px 24px rgba(249, 96, 63, 0.20);
+}

@@ -125,3 +125,196 @@
     transform: translateY(-0.25rem);
   }
 }
+
+/* ============================================================================
+   Kindello design-system tokens (.claude/skills/design-system/tokens/*.css)
+   ported into the app. The directory surfaces (homepage / results / detail)
+   and the chat experience read these raw tokens directly via inline styles.
+   Surface/fg/muted aliases point at the existing oklch theme vars so the whole
+   palette follows light/dark automatically; only the soft tint bands are
+   re-darkened under .dark.
+   ========================================================================== */
+:root {
+  /* Brand: teal */
+  --teal-50: #e8f7f7;
+  --teal-100: #c6ecec;
+  --teal-200: #93dbdb;
+  --teal-300: #57c5c5;
+  --teal-400: #2fb3b3;
+  --teal-500: #1ca6a6; /* brand primary */
+  --teal-600: #158888;
+  --teal-700: #136d6d;
+  --teal-800: #135757;
+  --teal-900: #134848;
+
+  /* Accent: coral (high-intent CTA / "places now") */
+  --coral-100: #ffe6df;
+  --coral-200: #ffc9bb;
+  --coral-300: #ffa48d;
+  --coral-400: #ff8166;
+  --coral-500: #f9603f;
+  --coral-600: #e2492a;
+
+  /* Accent: sunny yellow (star ratings, small highlights) */
+  --sun-100: #fff3d1;
+  --sun-200: #ffe49c;
+  --sun-300: #ffd766;
+  --sun-400: #ffc83d;
+  --sun-500: #f5b125;
+
+  /* Soft tinted section bands */
+  --teal-tint: #f1faf9;
+  --coral-tint: #fff4f0;
+  --sun-tint: #fffaf0;
+
+  /* NQS quality-rating semantics (centre-card.tsx ramp) */
+  --rating-meeting: #2f7fe0;
+  --rating-working: #d68a16;
+  --rating-improve: oklch(0.58 0.22 27);
+
+  /* Neutral / surface aliases → existing oklch theme vars (dark-mode aware) */
+  --bg: var(--background);
+  --fg: var(--foreground);
+  --surface: var(--card);
+  --muted-fg: var(--muted-foreground);
+  --text-strong: var(--foreground);
+  --text-body: var(--foreground);
+  /* --secondary, --border, --input come from the theme block above */
+
+  /* Semantic brand aliases. --color-primary already resolves to teal via the
+     theme block; we add the hover/fg shades the DS components expect. The coral
+     accent uses a DS-only name (--brand-accent) so it does NOT clobber
+     Tailwind's --color-accent, which the legacy chat UI's bg-accent utilities
+     still rely on. */
+  --color-primary-hover: var(--teal-600);
+  --color-primary-fg: #ffffff;
+  --brand-accent: var(--coral-500);
+  --brand-accent-hover: var(--coral-600);
+  --color-highlight: var(--sun-400);
+
+  /* Radius extensions (theme already defines --radius + sm/md/lg/xl) */
+  --radius-2xl: calc(var(--radius) + 12px); /* 24px feature panels */
+  --radius-pill: 9999px;
+
+  /* Soft, warm elevation */
+  --shadow-xs: 0 1px 2px rgba(31, 32, 28, 0.05);
+  --shadow-sm: 0 1px 3px rgba(31, 32, 28, 0.06), 0 1px 2px rgba(31, 32, 28, 0.04);
+  --shadow-md: 0 4px 12px rgba(31, 32, 28, 0.07), 0 2px 4px rgba(31, 32, 28, 0.04);
+  --shadow-lg: 0 12px 28px rgba(31, 32, 28, 0.1), 0 4px 10px rgba(31, 32, 28, 0.05);
+  --shadow-xl: 0 24px 48px rgba(31, 32, 28, 0.12), 0 8px 16px rgba(31, 32, 28, 0.06);
+  --shadow-teal: 0 8px 24px rgba(28, 166, 166, 0.18);
+  --shadow-coral: 0 8px 24px rgba(249, 96, 63, 0.2);
+}
+
+.dark {
+  /* Re-darken the soft tint bands so sections read on the warm-dark page. */
+  --teal-tint: oklch(0.24 0.02 192);
+  --coral-tint: oklch(0.25 0.03 35);
+  --sun-tint: oklch(0.25 0.02 85);
+  /* Body copy lifts off pure foreground for comfortable reading on dark. */
+  --text-body: oklch(0.88 0.005 95);
+  /* Warm, lighter shadows on a dark page. */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.55), 0 4px 10px rgba(0, 0, 0, 0.35);
+  --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Typewriter caret used by the hero composer placeholder. */
+@keyframes ds-caret-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes ds-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- DS layout utilities (inline styles can't express media queries) ---- */
+.ds-container {
+  max-width: var(--container-max, 1200px);
+  margin-inline: auto;
+  padding-inline: 24px;
+  width: 100%;
+}
+.ds-prose {
+  max-width: 720px;
+  margin-inline: auto;
+  width: 100%;
+}
+.ds-grid {
+  display: grid;
+  gap: 18px;
+}
+.ds-grid-4 { grid-template-columns: 1fr; }
+.ds-grid-3 { grid-template-columns: 1fr; }
+.ds-grid-5 { grid-template-columns: repeat(2, 1fr); }
+.ds-grid-2 { grid-template-columns: 1fr; }
+
+@media (min-width: 640px) {
+  .ds-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .ds-grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .ds-grid-5 { grid-template-columns: repeat(3, 1fr); }
+  .ds-grid-2 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 960px) {
+  .ds-grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .ds-grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .ds-grid-5 { grid-template-columns: repeat(5, 1fr); }
+}
+
+/* Reveal the directory header nav + Sign in on wider screens. */
+@media (min-width: 820px) {
+  .ds-header-nav { display: flex !important; }
+  .ds-header-signin { display: inline-flex !important; }
+}
+
+/* Hero / page-title scale steps down on small screens. */
+.ds-hero-h1 { font-size: clamp(34px, 7vw, 52px); }
+.ds-section-h2 { font-size: clamp(24px, 4vw, 28px); }
+.ds-page-h1 { font-size: clamp(28px, 5vw, 38px); }
+
+@media (max-width: 720px) {
+  .ds-footer-grid { grid-template-columns: 1fr !important; }
+}
+
+/* Active-chat 2-column layout (conversation + sticky map rail) collapses to one. */
+.ds-answer-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 28px;
+  align-items: start;
+}
+@media (min-width: 980px) {
+  .ds-answer-layout { grid-template-columns: minmax(0, 1fr) 340px; }
+}
+/* Places-tab map + results split. */
+.ds-places-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+@media (min-width: 900px) {
+  .ds-places-layout { grid-template-columns: 360px minmax(0, 1fr); }
+}
+.ds-detail-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 40px;
+  align-items: start;
+}
+@media (min-width: 980px) {
+  .ds-detail-layout { grid-template-columns: minmax(0, 1fr) 320px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

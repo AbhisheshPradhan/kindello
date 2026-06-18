@@ -148,6 +148,8 @@ export const searchCentres = tool({
     const { rows } = await pool.query(
       `SELECT service_name, service_address, suburb, state, postcode, overall_rating,
               nullif(phone, '') AS phone, operating_hours,
+              latitude::float8 AS latitude, longitude::float8 AS longitude,
+              service_approval_number AS id,
               number_of_approved_places AS places,
               ${scoreExpr} AS match_score,
               round((ST_Distance(geog, ST_MakePoint($1,$2)::geography)/1000)::numeric, 2)::float8 AS distance_km

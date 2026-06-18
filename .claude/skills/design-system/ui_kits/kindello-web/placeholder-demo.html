@@ -1,0 +1,125 @@
+<!-- @dsCard group="Kindello Web" viewport="760x620" name="Hero placeholder — motion options" subtitle="Three live mechanics, compared" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Placeholder animation — examples</title>
+<link rel="stylesheet" href="../../styles.css" />
+<style>
+  body { margin: 0; padding: 36px 32px; background: linear-gradient(180deg, var(--teal-tint), var(--bg) 70%); min-height: 100vh; }
+  .wrap { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 26px; }
+  .intro h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; color: var(--fg); }
+  .intro p { font-size: 14.5px; color: var(--muted-fg); margin-top: 6px; }
+  .case { }
+  .head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 9px; }
+  .num { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: #fff; background: var(--teal-500); width: 20px; height: 20px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .title { font-size: 15px; font-weight: 600; color: var(--fg); }
+  .note { font-size: 13px; color: var(--muted-fg); }
+  /* fake hero input */
+  .field {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-2xl); box-shadow: var(--shadow-md);
+    padding: 18px 20px;
+  }
+  .spark { color: var(--teal-500); flex: none; display: inline-flex; }
+  .ph { font-size: 16.5px; color: var(--muted-fg); line-height: 1.4; min-height: 1.4em; }
+  .ph .fixed { color: var(--text-body); }
+  .caret { display: inline-block; width: 1.5px; height: 1.05em; background: var(--teal-500); margin-left: 1px; vertical-align: -0.16em; animation: blink 1.05s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .send { margin-left: auto; flex: none; width: 40px; height: 40px; border-radius: var(--radius-pill); background: var(--teal-500); color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+  .send svg { width: 20px; height: 20px; }
+  .fade .ph { transition: opacity .28s ease, transform .28s ease; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="intro">
+      <h1>Hero placeholder — three ways to switch</h1>
+      <p>All running live at brand timing (type 80ms · delete 45ms · hold 1.5s). They only animate while the field is empty.</p>
+    </div>
+
+    <div class="case">
+      <div class="head"><span class="num">1</span><span class="title">Backspace typewriter — full query</span></div>
+      <div class="note" style="margin-bottom:10px">Types the whole sentence, holds, backspaces right→left to empty, types the next. The calm classic (this is what the live app does). Best for Flavor B.</div>
+      <div class="field">
+        <span class="spark">__SPARK__</span>
+        <span class="ph"><span id="t1"></span><span class="caret"></span></span>
+        <span class="send">__ARROW__</span>
+      </div>
+    </div>
+
+    <div class="case">
+      <div class="head"><span class="num">2</span><span class="title">Fixed prefix — swap the tail only</span></div>
+      <div class="note" style="margin-bottom:10px">“Find a childcare centre near ” stays put; only the suburb types &amp; backspaces. Lighter &amp; quicker — the eye tracks one short word. Best for Flavor A.</div>
+      <div class="field">
+        <span class="spark">__SPARK__</span>
+        <span class="ph"><span class="fixed">Find a childcare centre near </span><span id="t2"></span><span class="caret"></span></span>
+        <span class="send">__ARROW__</span>
+      </div>
+    </div>
+
+    <div class="case">
+      <div class="head"><span class="num">3</span><span class="title">Crossfade / slide — no typing</span></div>
+      <div class="note" style="margin-bottom:10px">Whole line fades up and out, next fades in. Quieter, more “corporate calm” — loses the playful typing charm.</div>
+      <div class="field fade">
+        <span class="spark">__SPARK__</span>
+        <span class="ph" id="t3">Find a childcare centre near Parramatta</span>
+        <span class="send">__ARROW__</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SPARK = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15l-1.8-4.2L5.5 9l4.7-1.3z"/></svg>';
+    const ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>';
+    document.querySelectorAll('.spark').forEach(e => e.innerHTML = SPARK);
+    document.querySelectorAll('.send').forEach(e => e.innerHTML = ARROW);
+
+    const TYPE = 80, DEL = 45, HOLD = 1500, GAP = 350;
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    async function typewriter(el, words) {
+      let i = 0;
+      while (true) {
+        const w = words[i % words.length];
+        for (let n = 1; n <= w.length; n++) { el.textContent = w.slice(0, n); await sleep(TYPE); }
+        await sleep(HOLD);
+        for (let n = w.length; n >= 0; n--) { el.textContent = w.slice(0, n); await sleep(DEL); }
+        await sleep(GAP);
+        i++;
+      }
+    }
+
+    async function crossfade(el, lines) {
+      let i = 0;
+      const ph = el;
+      while (true) {
+        ph.style.opacity = 1; ph.style.transform = 'translateY(0)';
+        ph.textContent = lines[i % lines.length];
+        await sleep(2200);
+        ph.style.opacity = 0; ph.style.transform = 'translateY(-8px)';
+        await sleep(300);
+        i++;
+        ph.style.transform = 'translateY(8px)';
+      }
+    }
+
+    typewriter(document.getElementById('t1'), [
+      "Long day care for a 2 year old near Parramatta",
+      "Montessori preschool in Surry Hills, outdoor space",
+      "After school care close to Lakemba",
+      "Top rated centres near Newcastle, places now",
+    ]);
+    typewriter(document.getElementById('t2'), [
+      "Parramatta", "Lakemba", "Newcastle", "Footscray", "Fremantle", "South Brisbane",
+    ]);
+    crossfade(document.getElementById('t3'), [
+      "Find a childcare centre near Parramatta",
+      "Find a childcare centre near Lakemba",
+      "Find a childcare centre near Newcastle",
+    ]);
+  </script>
+</body>
+</html>

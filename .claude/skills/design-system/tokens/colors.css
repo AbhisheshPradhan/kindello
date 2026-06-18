@@ -1,0 +1,76 @@
+/* Kindello — Color tokens
+ * Source of truth: web/app/globals.css (oklch token set, teal brand #1CA6A6).
+ * The coral + sunny-yellow accents are a brand extension requested for the
+ * directory surfaces (homepage / listings / detail). Flagged in README.
+ */
+
+:root {
+  /* ---- Brand: teal ---- */
+  --teal-50:  #e8f7f7;
+  --teal-100: #c6ecec;
+  --teal-200: #93dbdb;
+  --teal-300: #57c5c5;
+  --teal-400: #2fb3b3;
+  --teal-500: #1ca6a6; /* brand primary */
+  --teal-600: #158888;
+  --teal-700: #136d6d;
+  --teal-800: #135757;
+  --teal-900: #134848;
+
+  /* ---- Accent: coral (warm CTA / "places available") ---- */
+  --coral-100: #ffe6df;
+  --coral-200: #ffc9bb;
+  --coral-300: #ffa48d;
+  --coral-400: #ff8166;
+  --coral-500: #f9603f; /* accent primary */
+  --coral-600: #e2492a;
+
+  /* ---- Accent: sunny yellow (highlights, ratings glow, chips) ---- */
+  --sun-100: #fff3d1;
+  --sun-200: #ffe49c;
+  --sun-300: #ffd766;
+  --sun-400: #ffc83d; /* star / highlight */
+  --sun-500: #f5b125;
+
+  /* ---- Warm neutrals (stone base, slightly warm) ---- */
+  --bg:        oklch(0.99 0.005 95);   /* page — warm off-white */
+  --fg:        oklch(0.21 0.01 60);    /* near-black, warm */
+  --surface:   #ffffff;                /* card */
+  --secondary: oklch(0.97 0.005 95);   /* subtle fill */
+  --muted:     oklch(0.97 0.005 95);
+  --muted-fg:  oklch(0.55 0.01 60);    /* secondary text */
+  --border:    oklch(0.92 0.005 80);   /* hairline */
+  --input:     oklch(0.92 0.005 80);
+
+  /* ---- Soft tinted surfaces (section backgrounds) ---- */
+  --teal-tint:  #f1faf9;   /* teal-washed band */
+  --coral-tint: #fff4f0;   /* coral-washed band */
+  --sun-tint:   #fffaf0;   /* yellow-washed band */
+
+  /* ---- NQS quality rating semantics (from centre-card.tsx) ---- */
+  --rating-excellent:  var(--teal-500);
+  --rating-exceeding:  var(--teal-600);
+  --rating-meeting:    #2f7fe0;
+  --rating-working:    #d68a16;
+  --rating-improve:    oklch(0.58 0.22 27);
+
+  /* ---- Semantic aliases ---- */
+  --color-primary:        var(--teal-500);
+  --color-primary-hover:  var(--teal-600);
+  --color-primary-fg:     #ffffff;
+  --color-accent:         var(--coral-500);
+  --color-accent-hover:   var(--coral-600);
+  --color-accent-fg:      #ffffff;
+  --color-highlight:      var(--sun-400);
+
+  --text-strong:   var(--fg);
+  --text-body:     oklch(0.32 0.01 60);
+  --text-muted:    var(--muted-fg);
+  --text-on-teal:  #ffffff;
+
+  --surface-page:  var(--bg);
+  --surface-card:  var(--surface);
+  --surface-sunk:  var(--secondary);
+
+  --ring: var(--teal-500);
+}

@@ -1,0 +1,34 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Primary — Teal" subtitle="Brand teal #1CA6A6 ramp" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<style>
+  body { margin: 0; padding: 20px; }
+  .row { display: flex; gap: 0; border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .sw { flex: 1; height: 92px; display: flex; flex-direction: column; justify-content: flex-end; padding: 10px; }
+  .sw span { font-family: var(--font-mono); font-size: 11px; }
+  .sw .hex { font-weight: 600; }
+  .light { color: var(--fg); }
+  .on { color: #fff; }
+  .label { margin-top: 12px; font-size: 13px; color: var(--text-muted); }
+  .label b { color: var(--color-primary); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw light" style="background:var(--teal-50)"><span class="hex">50</span></div>
+    <div class="sw light" style="background:var(--teal-100)"><span class="hex">100</span></div>
+    <div class="sw light" style="background:var(--teal-200)"><span class="hex">200</span></div>
+    <div class="sw on" style="background:var(--teal-300)"><span class="hex">300</span></div>
+    <div class="sw on" style="background:var(--teal-400)"><span class="hex">400</span></div>
+    <div class="sw on" style="background:var(--teal-500)"><span class="hex">500</span><span>#1CA6A6</span></div>
+    <div class="sw on" style="background:var(--teal-600)"><span class="hex">600</span></div>
+    <div class="sw on" style="background:var(--teal-700)"><span class="hex">700</span></div>
+    <div class="sw on" style="background:var(--teal-800)"><span class="hex">800</span></div>
+    <div class="sw on" style="background:var(--teal-900)"><span class="hex">900</span></div>
+  </div>
+  <p class="label"><b>--teal-500 / --color-primary</b> is the brand anchor — logo mark, primary CTAs, links, focus rings, "Exceeding" ratings.</p>
+</body>
+</html>

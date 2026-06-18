@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Kindello Homepage" description="AI-search childcare directory homepage — hero composer, featured centres, browse tiles, guides, footer" -->
+<helmet>
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/brand/favicons/favicon-32x32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../../assets/brand/favicons/apple-touch-icon.png" />
+<script src="./ds-base.js"></script>
+</helmet>
+
+<div style="font-family: var(--font-sans); background: var(--bg); color: var(--text-strong); min-height: 100vh;">
+
+  <!-- header -->
+  <header style="display:flex; align-items:center; gap:16px; padding:14px 40px; position:sticky; top:0; z-index:20; background:rgba(253,252,250,.9); backdrop-filter:blur(10px); border-bottom:1px solid var(--border);">
+    <span style="display:inline-flex; align-items:center; gap:10px;">
+      <img src="../../assets/brand/kindello-mark-clean.png" alt="" style="height:32px; width:auto; display:block;" />
+      <span style="font-size:21px; font-weight:600; letter-spacing:-0.02em; color:var(--color-primary);">Kindello</span>
+    </span>
+    <nav style="display:flex; align-items:center; gap:4px; margin-left:18px;">
+      <a href="#" style="padding:8px 12px; font-size:14.5px; font-weight:500; color:var(--text-body); border-radius:var(--radius-md); text-decoration:none;">Browse</a>
+      <a href="#" style="padding:8px 12px; font-size:14.5px; font-weight:500; color:var(--text-body); border-radius:var(--radius-md); text-decoration:none;">Locations</a>
+      <a href="#" style="padding:8px 12px; font-size:14.5px; font-weight:500; color:var(--text-body); border-radius:var(--radius-md); text-decoration:none;">Guides</a>
+      <a href="#" style="padding:8px 12px; font-size:14.5px; font-weight:500; color:var(--text-body); border-radius:var(--radius-md); text-decoration:none;">About</a>
+    </nav>
+    <span style="flex:1;"></span>
+    <span style="font-size:14px; font-weight:600; color:var(--text-body); padding:8px 14px;">Sign in</span>
+    <span style="font-size:14px; font-weight:600; color:#fff; background:var(--color-primary); padding:9px 16px; border-radius:var(--radius-md); box-shadow:var(--shadow-teal);">List your centre</span>
+  </header>
+
+  <!-- hero -->
+  <section style="background:linear-gradient(180deg, var(--teal-tint), var(--bg) 84%); padding:72px 40px 56px; text-align:center;">
+    <span style="display:inline-flex; align-items:center; gap:7px; padding:6px 14px; font-size:13.5px; font-weight:600; color:var(--teal-700); background:var(--surface); border:1px solid var(--teal-200); border-radius:var(--radius-pill); box-shadow:var(--shadow-xs); margin-bottom:22px;">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4 3 7.5 7 9 4-1.5 7-5 7-9V6Z"></path><path d="m9 12 2 2 4-4"></path></svg>
+      18,229 approved centres · updated daily
+    </span>
+    <h1 style="font-size:52px; font-weight:600; letter-spacing:-0.03em; line-height:1.05; color:var(--fg); margin:0; text-wrap:balance;">Find the right childcare, faster.</h1>
+    <p style="font-size:19px; line-height:1.5; color:var(--text-body); margin:18px auto 0; max-width:580px;">Ask in plain English. Kindello searches every approved service in Australia by location, care type and quality rating.</p>
+
+    <div style="max-width:760px; margin:36px auto 0; text-align:left;">
+      <x-import component-from-global-scope="KindelloDesignSystem_c65c52.ChatComposer" size="lg" placeholder="Tell us what you're looking for — e.g. Montessori daycare in Surry Hills with outdoor space" hint-size="100%,128px"></x-import>
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:9px; justify-content:center; margin-top:20px;">
+      <sc-for list="{{ chips }}" as="chip" hint-placeholder-count="4">
+        <x-import component-from-global-scope="KindelloDesignSystem_c65c52.PromptChip" hint-size="180px,40px">{{ chip }}</x-import>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- featured listings -->
+  <section style="max-width:1200px; margin:0 auto; padding:64px 40px;">
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:22px;">
+      <div>
+        <h2 style="font-size:28px; font-weight:600; letter-spacing:-0.02em; color:var(--fg);">Popular near you</h2>
+        <p style="font-size:15px; color:var(--muted-fg); margin-top:5px;">Highly rated centres parents are enquiring about this week.</p>
+      </div>
+      <a href="#" style="font-size:14.5px; font-weight:600; color:var(--teal-600); text-decoration:none;">See all →</a>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:18px;">
+      <sc-for list="{{ centres }}" as="c" hint-placeholder-count="4">
+        <x-import component-from-global-scope="KindelloDesignSystem_c65c52.CentreCard" centre-name="{{ c.name }}" suburb="{{ c.suburb }}" distance="{{ c.distance }}" rating="{{ c.rating }}" reviews="{{ c.reviews }}" nqs="{{ c.nqs }}" tags="{{ c.tags }}" key-info="{{ c.keyInfo }}" seed="{{ c.seed }}" hint-size="100%,360px"></x-import>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- browse by type -->
+  <section style="background:var(--teal-tint); padding:64px 0;">
+    <div style="max-width:1200px; margin:0 auto; padding:0 40px;">
+      <h2 style="font-size:28px; font-weight:600; letter-spacing:-0.02em; color:var(--fg); margin-bottom:22px;">Browse by type</h2>
+      <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:16px;">
+        <sc-for list="{{ cats }}" as="cat" hint-placeholder-count="5">
+          <x-import component-from-global-scope="KindelloDesignSystem_c65c52.CategoryTile" icon="{{ cat.icon }}" label="{{ cat.label }}" count="{{ cat.count }}" tone="{{ cat.tone }}" hint-size="100%,150px"></x-import>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- guides -->
+  <section style="background:var(--sun-tint); padding:64px 0;">
+    <div style="max-width:1200px; margin:0 auto; padding:0 40px;">
+      <h2 style="font-size:28px; font-weight:600; letter-spacing:-0.02em; color:var(--fg); margin-bottom:22px;">Guides for parents</h2>
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:20px;">
+        <sc-for list="{{ guides }}" as="g" hint-placeholder-count="3">
+          <x-import component-from-global-scope="KindelloDesignSystem_c65c52.GuideCard" category="{{ g.category }}" title="{{ g.title }}" read-time="{{ g.readTime }}" seed="{{ g.seed }}" hint-size="100%,260px"></x-import>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- footer -->
+  <footer style="background:var(--teal-tint); color:var(--text-body); padding:48px 40px; border-top:1px solid var(--border);">
+    <div style="max-width:1200px; margin:0 auto; display:flex; align-items:center; gap:10px;">
+      <img src="../../assets/brand/kindello-mark-clean.png" alt="" style="height:30px; width:auto; display:block;" />
+      <span style="font-size:21px; font-weight:600; letter-spacing:-0.02em; color:var(--color-primary);">Kindello</span>
+      <span style="flex:1;"></span>
+      <span style="font-size:13px; color:var(--muted-fg);">© 2026 Kindello. Quality ratings sourced from ACECQA.</span>
+    </div>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      chips: [
+        "Long day care near me",
+        "Open weekends",
+        "Highly rated in Inner West",
+        "Montessori in Surry Hills",
+      ],
+      centres: [
+        { name: "Little Gum Tree Early Learning", suburb: "Surry Hills", distance: "1.2 km", rating: 4.8, reviews: 126, nqs: "Exceeding NQS", tags: ["Montessori", "Outdoor space"], keyInfo: "Places available", seed: 0 },
+        { name: "Banksia House", suburb: "Carlton", distance: "0.8 km", rating: 4.9, reviews: 203, nqs: "Excellent", tags: ["Preschool", "Organic meals"], keyInfo: "", seed: 2 },
+        { name: "Sunshine Cottage", suburb: "Newtown", distance: "2.1 km", rating: 4.6, reviews: 88, nqs: "Meeting NQS", tags: ["Long day care", "Ages 0–5"], keyInfo: "Waitlist only", seed: 1 },
+        { name: "Little Wattle", suburb: "Fremantle", distance: "3.4 km", rating: 4.4, reviews: 51, nqs: "Exceeding NQS", tags: ["Family day care"], keyInfo: "Places available", seed: 3 },
+      ],
+      cats: [
+        { icon: "baby", label: "Long Day Care", count: 1240, tone: "teal" },
+        { icon: "users", label: "Family Day Care", count: 410, tone: "coral" },
+        { icon: "graduation-cap", label: "Preschool / Kindy", count: 680, tone: "sun" },
+        { icon: "blocks", label: "Montessori", count: 142, tone: "teal" },
+        { icon: "sun", label: "Occasional Care", count: 96, tone: "coral" },
+      ],
+      guides: [
+        { category: "Choosing care", title: "How to read an NQS quality rating", readTime: "5 min read", seed: 0 },
+        { category: "Costs", title: "Understanding the Child Care Subsidy", readTime: "6 min read", seed: 1 },
+        { category: "Getting started", title: "Daycare waitlists: when to apply", readTime: "4 min read", seed: 2 },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

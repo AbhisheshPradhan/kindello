@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 
 // Shape of one row from the `searchCentres` tool (lib/tools.ts).
 export type Centre = {
+  id?: string;
   service_name: string;
   service_address: string | null;
   suburb: string | null;
@@ -12,8 +13,11 @@ export type Centre = {
   phone: string | null;
   operating_hours: OperatingHours | null;
   places: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
   distance_km: number | null;
   maps_link: string;
+  match?: string;
 };
 
 type DayHours = { start?: string; end?: string };

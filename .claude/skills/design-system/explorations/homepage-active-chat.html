@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kindello — Active chat (Perplexity-style)</title>
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; background: #e9e7e2; font-family: var(--font-sans); }
+  .canvas { min-width: 100%; width: max-content; min-height: 100vh; padding: 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px; }
+  .canvas-h { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #6f6c63; margin: 0; }
+  .canvas-sub { font-size: 13.5px; color: #79766d; margin: 0 0 22px; max-width: 900px; line-height: 1.55; }
+  .canvas-sub b { color: #4a473f; }
+  .row { display: flex; gap: 44px; align-items: flex-start; }
+  .frame-label { font-size: 13px; font-weight: 600; color: #5c5950; margin: 0 0 10px; }
+  .frame { background: var(--surface); border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 16px 36px rgba(0,0,0,.12); overflow: hidden; display: flex; flex-direction: column; }
+  .col { display: flex; flex-direction: column; }
+
+  /* chrome */
+  .hdr { display: flex; align-items: center; gap: 13px; padding: 13px 28px; }
+  .mark { width: 26px; height: 26px; border-radius: var(--radius-md); background: var(--color-primary); color: #fff; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .wm { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; color: var(--fg); }
+  .spacer { flex: 1; }
+  .ghostbtn { font-size: 13px; color: var(--text-body); font-weight: 500; padding: 7px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); display: inline-flex; align-items: center; gap: 6px; }
+
+  /* GLOBAL top tabs — one toggle for the whole conversation */
+  .toptabs { display: flex; justify-content: flex-start; gap: 30px; border-bottom: 1px solid var(--border); padding: 0 28px; }
+  .ttab { display: inline-flex; align-items: center; gap: 8px; padding: 13px 2px; font-size: 14.5px; font-weight: 500; color: var(--muted-fg); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .ttab.on { color: var(--fg); border-bottom-color: var(--teal-500); font-weight: 600; }
+  .ttab .cnt { font-size: 11px; background: var(--teal-50); color: var(--teal-700); border-radius: 999px; padding: 1px 6px; }
+
+  .scroll { padding: 26px 0 0; flex: 1; }
+  .thread { max-width: 720px; margin: 0; padding: 0 28px; }
+  .ubub { width: fit-content; max-width: 78%; margin-left: auto; background: var(--color-primary); color: #fff; padding: 11px 16px; border-radius: 18px 18px 4px 18px; font-size: 14.5px; line-height: 1.45; }
+
+  .turn { margin-bottom: 10px; }
+  .turn + .turn { border-top: 1px solid var(--border); margin-top: 22px; padding-top: 22px; }
+  .answerwrap { margin-top: 16px; }
+  .ansmeta { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 13px; }
+  .ansmeta .lbl { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--fg); }
+  .ansmeta .src { display: inline-flex; align-items: center; gap: 5px; color: var(--teal-700); font-weight: 500; }
+  .ansmeta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--border); }
+
+  /* inline map preview in the answer */
+  .mapprev { position: relative; border-radius: var(--radius-xl); overflow: hidden; border: 1px solid var(--border); height: 320px; margin-bottom: 18px; background: #eef2ee; }
+  .roadlabel { position: absolute; font-size: 10.5px; letter-spacing: .04em; font-weight: 500; color: #9aa39b; }
+  .gpin { position: absolute; transform: translate(-50%,-100%); }
+  .gpin .lab { display: inline-flex; background: var(--teal-500); color: #fff; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; box-shadow: 0 2px 5px rgba(0,0,0,.25); }
+  .gpin .tip { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid var(--teal-500); margin: -1px auto 0; }
+  .mapwm { position: absolute; left: 12px; top: 12px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: rgba(0,0,0,.5); background: rgba(255,255,255,.8); padding: 4px 9px; border-radius: 6px; }
+  .floatcards { position: absolute; top: 12px; right: 12px; width: 286px; display: flex; flex-direction: column; gap: 8px; }
+  .mcard { display: flex; gap: 10px; background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow-md); padding: 9px 10px; align-items: center; }
+  .mcard .info { flex: 1; min-width: 0; }
+  .mcard .nm { font-size: 13px; font-weight: 600; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mcard .ad { font-size: 11.5px; color: var(--muted-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .mcard .rt { font-size: 11.5px; color: var(--text-body); margin-top: 3px; }
+  .mcard .rt b { color: var(--fg); }
+  .mcard .open { font-size: 11.5px; color: var(--teal-600); font-weight: 600; margin-top: 2px; }
+  .mcard .ph { width: 52px; height: 52px; border-radius: 8px; flex: none; }
+  .seemore { display: flex; align-items: center; justify-content: center; gap: 6px; background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow-md); padding: 11px; font-size: 13px; font-weight: 600; color: var(--teal-600); }
+
+  .answer { font-size: 15.5px; line-height: 1.7; color: var(--text-body); margin-bottom: 16px; }
+  .answer b { color: var(--fg); font-weight: 600; }
+  .src-chip { display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 11px; color: var(--muted-fg); background: var(--secondary); border-radius: 5px; padding: 2px 7px; vertical-align: middle; }
+  .sub-h { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; color: var(--fg); margin: 20px 0 10px; }
+  .blist { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+  .blist li { font-size: 15px; line-height: 1.5; color: var(--text-body); padding-left: 18px; position: relative; }
+  .blist li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 5px; height: 5px; border-radius: 50%; background: var(--teal-400); }
+  .blist b { color: var(--fg); font-weight: 600; }
+
+  .rows { display: flex; flex-direction: column; gap: 9px; }
+  .rrow { display: flex; gap: 12px; padding: 11px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-xs); align-items: center; }
+  .rthumb { width: 48px; height: 48px; border-radius: var(--radius-md); flex: none; }
+  .rbody { flex: 1; min-width: 0; }
+  .rname { font-size: 14px; font-weight: 600; color: var(--fg); }
+  .rmeta { font-size: 12.5px; color: var(--muted-fg); margin-top: 2px; }
+  .rmeta b { color: var(--coral-500); }
+
+  /* FOLLOW-UPS (Answer tab only) */
+  .followups { margin-top: 24px; }
+  .followups h4 { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; color: var(--fg); margin: 0 0 4px; }
+  .fu { display: flex; align-items: center; gap: 14px; padding: 14px 2px; border-top: 1px solid var(--border); cursor: pointer; }
+  .fu .ar { color: var(--muted-fg); flex: none; }
+  .fu span { font-size: 15.5px; color: var(--text-body); }
+
+  /* composer (Answer tab only) */
+  .composer { margin: 12px 0 22px 28px; max-width: 720px; width: calc(100% - 56px); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 14px 16px 11px; box-shadow: var(--shadow-md); background: var(--surface); }
+  .composer .ph { font-size: 14.5px; color: var(--muted-fg); }
+  .composer .bar { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .iconbtn { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; color: var(--muted-fg); }
+  .searchpill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 500; color: var(--text-body); }
+  .modelsel { font-size: 13px; color: var(--muted-fg); display: inline-flex; align-items: center; gap: 4px; }
+  .send { width: 32px; height: 32px; border-radius: 999px; background: var(--color-primary); color: #fff; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .blink { display:inline-block;width:2px;height:1em;background:var(--teal-500);vertical-align:-2px;margin-left:1px;animation:bl 1s steps(1) infinite }
+  @keyframes bl { 50% { opacity: 0 } }
+
+  /* ===== PLACES tab — standalone bigger view, no composer / follow-ups ===== */
+  .placeshead { padding: 22px 32px 0; font-size: 15px; color: var(--muted-fg); }
+  .placeshead b { color: var(--fg); font-weight: 600; }
+  .placeswrap { display: flex; gap: 0; padding: 16px 0 0; }
+  .bgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 0 24px 24px; flex: 1; align-content: start; }
+  .bcard { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--surface); box-shadow: var(--shadow-xs); display: flex; flex-direction: column; }
+  .bphoto { height: 132px; position: relative; }
+  .bverified { position: absolute; top: 9px; left: 9px; background: rgba(255,255,255,.94); color: var(--teal-700); font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; }
+  .bbody { padding: 13px 15px 15px; display: flex; flex-direction: column; gap: 9px; flex: 1; }
+  .bname { font-size: 15.5px; font-weight: 600; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brate { font-size: 13.5px; color: var(--text-body); display: flex; align-items: center; gap: 6px; }
+  .brate b { color: var(--fg); font-weight: 600; }
+  .brate .open { color: var(--teal-600); font-weight: 600; }
+  .brow { font-size: 13px; color: var(--muted-fg); display: inline-flex; align-items: center; gap: 7px; }
+  .bmore { margin-top: auto; border: 1px solid var(--border); border-radius: var(--radius-md); text-align: center; padding: 9px; font-size: 13.5px; font-weight: 600; color: var(--text-body); }
+  .placesmap { flex: 0 0 440px; position: relative; align-self: stretch; min-height: 760px; border-left: 1px solid var(--border); background: #eef2ee; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <p class="canvas-h">Active chat on the homepage · Perplexity / Google AI-Mode feel</p>
+  <p class="canvas-sub">One <b>Answer ⇄ Places</b> toggle at the very top of the conversation. <b>Answer</b> is the chat — bubbles, synthesised replies, follow-ups and the composer. <b>Places</b> is a separate, bigger view that simply plots the <b>last query's</b> results on a map (no chat input, no follow-ups) — just for browsing on a map.</p>
+
+  <div class="row">
+
+    <!-- FRAME A: Answer tab = the conversation -->
+    <div class="col">
+      <p class="frame-label">A · Answer tab — the conversation</p>
+      <div class="frame" style="width:840px">
+        <div class="hdr">
+          <span class="mark"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15l-1.8-4.2L5.5 9l4.7-1.3z"/></svg></span>
+          <span class="wm">Kindello</span>
+          <span class="spacer"></span>
+        </div>
+        <div class="toptabs">
+          <span class="ttab on"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15l-1.8-4.2L5.5 9l4.7-1.3z"/></svg> Answer</span>
+          <span class="ttab"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.4-8 12-8 12s-8-7.6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Places <span class="cnt">6</span></span>
+        </div>
+
+        <div class="scroll">
+          <div class="thread">
+            <!-- TURN 1 -->
+            <div class="turn">
+              <div class="ubub">Long day care for a 2 year old near Surry Hills, exceeding rated with places now</div>
+              <div class="answerwrap">
+                <div class="ansmeta">
+                  <span class="lbl"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--teal-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15l-1.8-4.2L5.5 9l4.7-1.3z"/></svg> Answer</span>
+                  <span class="dot"></span>
+                  <span class="src"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4 3 7.5 7 9 4-1.5 7-5 7-9V6Z"/><path d="m9 12 2 2 4-4"/></svg> ACECQA · synced today</span>
+                </div>
+
+                <div class="mapprev">
+                  <div style="position:absolute;inset:0;background:radial-gradient(160px 120px at 28% 66%,#e6efe4,transparent 72%),radial-gradient(190px 140px at 76% 30%,#dbeae6,transparent 72%)"></div>
+                  <div style="position:absolute;right:-40px;bottom:-30px;width:240px;height:180px;background:#cbe4e0;border-radius:50%;opacity:.8"></div>
+                  <div style="position:absolute;left:0;right:0;top:52%;height:3px;background:#fff"></div>
+                  <div style="position:absolute;left:30%;top:0;bottom:0;width:3px;background:#fff"></div>
+                  <span class="roadlabel" style="left:16px;top:22%">REDFERN</span>
+                  <span class="roadlabel" style="left:14%;top:74%">DARLINGTON</span>
+                  <span class="roadlabel" style="left:13%;top:46%">SURRY HILLS</span>
+                  <div class="gpin" style="left:24%;top:48%"><span class="lab">4.8</span><div class="tip"></div></div>
+                  <div class="gpin" style="left:36%;top:30%"><span class="lab">4.7</span><div class="tip"></div></div>
+                  <div class="gpin" style="left:30%;top:66%"><span class="lab">4.8</span><div class="tip"></div></div>
+                  <span class="mapwm"><svg viewBox="0 0 24 24" width="13" height="13" fill="var(--teal-500)"><circle cx="12" cy="12" r="10"/></svg> Mapbox</span>
+                  <div class="floatcards">
+                    <div class="mcard"><div class="info"><div class="nm">Little Gum Tree</div><div class="ad">24 Bourke St, Surry Hills</div><div class="rt"><span style="color:var(--sun-400)">★</span> <b>4.8</b> (126) · Exceeding</div><div class="open">3 places · open until 18:00</div></div><div class="ph" style="background:linear-gradient(135deg,#2fb3b3,#136d6d)"></div></div>
+                    <div class="mcard"><div class="info"><div class="nm">Jacaranda Cottage</div><div class="ad">12 Walker St, Redfern</div><div class="rt"><span style="color:var(--sun-400)">★</span> <b>4.7</b> (142) · Exceeding</div><div class="open">2 places · open until 18:00</div></div><div class="ph" style="background:linear-gradient(135deg,#57c5c5,#158888)"></div></div>
+                    <div class="seemore">View all on Places <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></div>
+                  </div>
+                </div>
+
+                <div class="answer">Near Surry Hills, the strongest matches are <b>Little Gum Tree Early Learning</b> in Surry Hills, <b>Jacaranda Cottage</b> in Redfern, and <b>Gumnut Grove</b> in Darlington — all rated <b>Exceeding NQS</b> with places open now for a 2-year-old. Little Gum Tree is the closest at 1.2 km and has the most availability (3 places); all three open from 7am. <span class="src-chip">acecqa.gov.au</span></div>
+
+                <div class="sub-h">Best near Surry Hills</div>
+                <ul class="blist">
+                  <li><b>Little Gum Tree Early Learning</b> — Exceeding NQS, ★ 4.8 (126), 7:00am–6:00pm, Surry Hills · 1.2 km. <span class="src-chip">acecqa.gov.au</span></li>
+                  <li><b>Jacaranda Cottage</b> — Exceeding NQS, ★ 4.7 (142), 7:30am–6:00pm, Redfern · 1.6 km.</li>
+                  <li><b>Gumnut Grove</b> — Exceeding NQS, ★ 4.8 (95), 7:00am–6:30pm, Darlington · 1.1 km.</li>
+                </ul>
+
+                <div class="followups">
+                  <h4>Follow-ups</h4>
+                  <div class="fu"><span class="ar"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v7a4 4 0 0 0 4 4h12"/><path d="m15 10 5 5-5 5"/></svg></span><span>Yes, show only the ones with outdoor space</span></div>
+                  <div class="fu"><span class="ar"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v7a4 4 0 0 0 4 4h12"/><path d="m15 10 5 5-5 5"/></svg></span><span>No, I'm happy to look at Redfern and Darlinghurst too</span></div>
+                  <div class="fu"><span class="ar"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v7a4 4 0 0 0 4 4h12"/><path d="m15 10 5 5-5 5"/></svg></span><span>What's the typical weekly fee after the subsidy?</span></div>
+                  <div class="fu"><span class="ar"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v7a4 4 0 0 0 4 4h12"/><path d="m15 10 5 5-5 5"/></svg></span><span>Which of these have vacancies for toddlers?</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TURN 2 -->
+            <div class="turn">
+              <div class="ubub">Which of these have vacancies for toddlers?</div>
+              <div class="answerwrap">
+                <div class="ansmeta">
+                  <span class="lbl"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--teal-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15l-1.8-4.2L5.5 9l4.7-1.3z"/></svg> Answer</span>
+                  <span class="dot"></span>
+                  <span class="src"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4 3 7.5 7 9 4-1.5 7-5 7-9V6Z"/><path d="m9 12 2 2 4-4"/></svg> ACECQA · synced today</span>
+                </div>
+                <div class="answer">All three have toddler (2–3 yrs) places open right now. <b>Little Gum Tree</b> has the most room with 3 toddler places, then <b>Jacaranda Cottage</b> with 2 and <b>Gumnut Grove</b> with 1.<span class="blink"></span></div>
+                <div class="rows">
+                  <div class="rrow"><div class="rthumb" style="background:linear-gradient(135deg,#2fb3b3,#136d6d)"></div><div class="rbody"><div class="rname">Little Gum Tree Early Learning</div><div class="rmeta">Surry Hills · 1.2 km · <b>3 toddler places</b></div></div></div>
+                  <div class="rrow"><div class="rthumb" style="background:linear-gradient(135deg,#57c5c5,#158888)"></div><div class="rbody"><div class="rname">Jacaranda Cottage</div><div class="rmeta">Redfern · 1.6 km · <b>2 toddler places</b></div></div></div>
+                </div>
+                <div class="followups">
+                  <h4>Follow-ups</h4>
+                  <div class="fu"><span class="ar"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v7a4 4 0 0 0 4 4h12"/><path d="m15 10 5 5-5 5"/></svg></span><span>Book a tour at Little Gum Tree</span></div>
+                  <div class="fu"><span class="ar"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v7a4 4 0 0 0 4 4h12"/><path d="m15 10 5 5-5 5"/></svg></span><span>Show their toddler-room educator ratios</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="composer">
+          <div class="ph">Ask a follow-up…</div>
+          <div class="bar">
+            <span class="iconbtn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+            <span class="searchpill"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg> Search <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+            <span class="spacer"></span>
+            <span class="modelsel">Claude <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+            <span class="send"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FRAME B: Places tab = standalone results-on-a-map view -->
+    <div class="col">
+      <p class="frame-label">B · Places tab — last query plotted on a map (no chat input / follow-ups)</p>
+      <div class="frame" style="width:1280px">
+        <div class="hdr">
+          <span class="mark"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15l-1.8-4.2L5.5 9l4.7-1.3z"/></svg></span>
+          <span class="wm">Kindello</span>
+          <span class="spacer"></span>
+        </div>
+        <div class="toptabs">
+          <span class="ttab"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15l-1.8-4.2L5.5 9l4.7-1.3z"/></svg> Answer</span>
+          <span class="ttab on"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.4-8 12-8 12s-8-7.6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Places <span class="cnt">6</span></span>
+        </div>
+
+        <div class="placeshead">Place results for: <b>Long day care for a 2 year old near Surry Hills, exceeding rated with places now</b></div>
+
+        <div class="placeswrap">
+          <div class="bgrid">
+            <div class="bcard"><div class="bphoto" style="background:linear-gradient(135deg,#2fb3b3,#136d6d)"><span class="bverified"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4 3 7.5 7 9 4-1.5 7-5 7-9V6Z"/><path d="m9 12 2 2 4-4"/></svg> Verified</span></div><div class="bbody"><div class="bname">Little Gum Tree Early Learning</div><div class="brate"><span style="color:var(--sun-400)">★</span> <b>4.8</b> (126) · <span class="open">3 places now</span></div><div class="brow"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.4-8 12-8 12s-8-7.6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Surry Hills · 1.2 km</div><div class="brow"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 3.5a16 16 0 0 0 6 6l-2 2a2 2 0 0 1-2 .5 13 13 0 0 1-5-3 13 13 0 0 1-3-5 2 2 0 0 1 .5-2l2-2"/></svg> (02) 9311 4422</div><div class="bmore">More info</div></div></div>
+            <div class="bcard"><div class="bphoto" style="background:linear-gradient(135deg,#57c5c5,#158888)"><span class="bverified"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4 3 7.5 7 9 4-1.5 7-5 7-9V6Z"/><path d="m9 12 2 2 4-4"/></svg> Verified</span></div><div class="bbody"><div class="bname">Jacaranda Cottage</div><div class="brate"><span style="color:var(--sun-400)">★</span> <b>4.7</b> (142) · <span class="open">2 places now</span></div><div class="brow"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.4-8 12-8 12s-8-7.6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Redfern · 1.6 km</div><div class="brow"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 3.5a16 16 0 0 0 6 6l-2 2a2 2 0 0 1-2 .5 13 13 0 0 1-5-3 13 13 0 0 1-3-5 2 2 0 0 1 .5-2l2-2"/></svg> (02) 9698 7711</div><div class="bmore">More info</div></div></div>
+            <div class="bcard"><div class="bphoto" style="background:linear-gradient(135deg,#ffc83d,#ff8166)"></div><div class="bbody"><div class="bname">Gumnut Grove</div><div class="brate"><span style="color:var(--sun-400)">★</span> <b>4.8</b> (95) · <span class="open">1 place now</span></div><div class="brow"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.4-8 12-8 12s-8-7.6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Darlington · 1.1 km</div><div class="brow"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 3.5a16 16 0 0 0 6 6l-2 2a2 2 0 0 1-2 .5 13 13 0 0 1-5-3 13 13 0 0 1-3-5 2 2 0 0 1 .5-2l2-2"/></svg> (02) 8333 9100</div><div class="bmore">More info</div></div></div>
+            <div class="bcard"><div class="bphoto" style="background:linear-gradient(135deg,#ffd766,#f5b125)"><span class="bverified"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4 3 7.5 7 9 4-1.5 7-5 7-9V6Z"/><path d="m9 12 2 2 4-4"/></svg> Verified</span></div><div class="bbody"><div class="bname">Banksia House</div><div class="brate"><span style="color:var(--sun-400)">★</span> <b>4.6</b> (88) · <span class="open">4 places now</span></div><div class="brow"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.4-8 12-8 12s-8-7.6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Redfern · 1.9 km</div><div class="brow"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 3.5a16 16 0 0 0 6 6l-2 2a2 2 0 0 1-2 .5 13 13 0 0 1-5-3 13 13 0 0 1-3-5 2 2 0 0 1 .5-2l2-2"/></svg> (02) 9319 5500</div><div class="bmore">More info</div></div></div>
+            <div class="bcard"><div class="bphoto" style="background:linear-gradient(135deg,#2fb3b3,#57c5c5)"></div><div class="bbody"><div class="bname">Possum Patch</div><div class="brate"><span style="color:var(--sun-400)">★</span> <b>4.5</b> (61) · <span class="open">2 places now</span></div><div class="brow"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.4-8 12-8 12s-8-7.6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Waterloo · 2.2 km</div><div class="brow"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 3.5a16 16 0 0 0 6 6l-2 2a2 2 0 0 1-2 .5 13 13 0 0 1-5-3 13 13 0 0 1-3-5 2 2 0 0 1 .5-2l2-2"/></svg> (02) 9690 1234</div><div class="bmore">More info</div></div></div>
+            <div class="bcard"><div class="bphoto" style="background:linear-gradient(135deg,#ff8166,#f9603f)"><span class="bverified"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4 3 7.5 7 9 4-1.5 7-5 7-9V6Z"/><path d="m9 12 2 2 4-4"/></svg> Verified</span></div><div class="bbody"><div class="bname">Wattle &amp; Vine</div><div class="brate"><span style="color:var(--sun-400)">★</span> <b>4.7</b> (73) · <span class="open">1 place now</span></div><div class="brow"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.4-8 12-8 12s-8-7.6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Darlinghurst · 1.4 km</div><div class="brow"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 3.5a16 16 0 0 0 6 6l-2 2a2 2 0 0 1-2 .5 13 13 0 0 1-5-3 13 13 0 0 1-3-5 2 2 0 0 1 .5-2l2-2"/></svg> (02) 9360 8800</div><div class="bmore">More info</div></div></div>
+          </div>
+
+          <div class="placesmap">
+            <div style="position:absolute;inset:0;background:radial-gradient(180px 130px at 30% 64%,#e6efe4,transparent 72%),radial-gradient(200px 150px at 74% 28%,#dbeae6,transparent 72%)"></div>
+            <div style="position:absolute;right:-50px;top:80px;width:240px;height:200px;background:#cbe4e0;border-radius:50%;opacity:.8"></div>
+            <div style="position:absolute;left:0;right:0;top:42%;height:3px;background:#fff"></div>
+            <div style="position:absolute;left:46%;top:0;bottom:0;width:3px;background:#fff"></div>
+            <div style="position:absolute;left:0;right:0;top:68%;height:2px;background:rgba(255,255,255,.6);transform:rotate(-4deg)"></div>
+            <span class="roadlabel" style="left:16px;top:20%">REDFERN</span>
+            <span class="roadlabel" style="left:56%;top:14%">SURRY HILLS</span>
+            <span class="roadlabel" style="left:20%;top:74%">WATERLOO</span>
+            <span class="roadlabel" style="left:62%;top:62%">DARLINGHURST</span>
+            <div class="gpin" style="left:34%;top:42%"><span class="lab">4.8</span><div class="tip"></div></div>
+            <div class="gpin" style="left:54%;top:52%"><span class="lab">4.7</span><div class="tip"></div></div>
+            <div class="gpin" style="left:30%;top:60%"><span class="lab">4.8</span><div class="tip"></div></div>
+            <div class="gpin" style="left:60%;top:34%"><span class="lab">4.6</span><div class="tip"></div></div>
+            <div class="gpin" style="left:42%;top:70%"><span class="lab">4.5</span><div class="tip"></div></div>
+            <div class="gpin" style="left:68%;top:48%"><span class="lab">4.7</span><div class="tip"></div></div>
+            <span class="mapwm"><svg viewBox="0 0 24 24" width="13" height="13" fill="var(--teal-500)"><circle cx="12" cy="12" r="10"/></svg> Mapbox</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

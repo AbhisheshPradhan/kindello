@@ -1,0 +1,6 @@
+/* Kindello — Webfonts
+ * Geist + Geist Mono, matching the Next.js app (next/font/google).
+ * Loaded from Google Fonts. The compiler ships this file to consumers;
+ * cards/components inherit via styles.css.
+ */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap");
