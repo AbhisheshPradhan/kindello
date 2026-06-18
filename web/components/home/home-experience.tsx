@@ -190,7 +190,7 @@ export function HomeExperience({
 	const placeholderOverlay = useMemo(
 		() => (
 			<span>
-				<span style={{ color: "var(--text-body)" }}>{typed}</span>
+				<span style={{ color: "var(--muted-fg)" }}>{typed}</span>
 				<span
 					style={{
 						animation: "ds-caret-blink 1s step-end infinite",

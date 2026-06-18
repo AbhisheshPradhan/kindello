@@ -43,6 +43,8 @@ export function ChatComposer({
 	style?: CSSProperties;
 }) {
 	const big = size === "lg";
+	// Model selector hidden for now — flip to `true` to re-enable.
+	const showModelPicker: boolean = false;
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const [focused, setFocused] = useState(false);
 
@@ -163,13 +165,18 @@ export function ChatComposer({
 					style={{
 						display: "inline-flex",
 						alignItems: "center",
+						// In hero (lg) mode the send button is taller than this row's
+						// text, so drop the location chip to the bottom to line up
+						// with the button's lower edge.
+						alignSelf: big ? "flex-end" : "center",
+						paddingBottom: big ? 6 : 0,
 						gap: 6,
 						maxWidth: 220,
 						fontSize: 13,
 						fontWeight: 500,
 						color: location
 							? "var(--teal-700)"
-							: "var(--text-body)",
+							: "var(--muted-fg)",
 					}}
 				>
 					<Icon
@@ -188,7 +195,8 @@ export function ChatComposer({
 					</span>
 				</span>
 				<span style={{ flex: 1 }} />
-				{models && onModelChange ? (
+				{showModelPicker &&
+					(models && onModelChange ? (
 					<div
 						className="hidden sm:inline-flex"
 						style={{
@@ -256,7 +264,7 @@ export function ChatComposer({
 							size={13}
 						/>
 					</span>
-				)}
+				))}
 				<button
 					type="submit"
 					aria-label="Send"
