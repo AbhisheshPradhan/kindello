@@ -137,6 +137,10 @@ export default function MapboxMap({
 			const viewed = loadViewed();
 			// The currently-selected pin (popup open). Cleared/marked-visited on dismiss.
 			let selected: { id?: string; el: HTMLElement; p: MapPoint } | null = null;
+			// Mapbox's Popup.addTo() calls remove() first (firing "close") when moving an
+			// open popup to another pin. This guards that programmatic close so only a REAL
+			// dismissal (X / map click / Esc) marks the centre visited.
+			let switching = false;
 
 			const baseState = (p: MapPoint): PinState =>
 				p.id && viewed.has(p.id) ? "visited" : "default";
@@ -153,6 +157,7 @@ export default function MapboxMap({
 
 			// Dismissing the popup (X, map click, Esc) marks the open centre as visited.
 			popup.on("close", () => {
+				if (switching) return; // pin-to-pin switch, not a real dismissal
 				deselect(true);
 				cardRoot?.unmount();
 				cardRoot = null;
@@ -187,7 +192,10 @@ export default function MapboxMap({
 					cardRoot?.unmount();
 					cardRoot = createRoot(container);
 					cardRoot.render(<PinCard p={p} />);
+					// Guard the close fired by addTo()'s internal remove() during the swap.
+					switching = true;
 					popup.setLngLat([p.lng, p.lat]).setDOMContent(container).addTo(map!);
+					switching = false;
 				});
 
 				markers.push(marker);
