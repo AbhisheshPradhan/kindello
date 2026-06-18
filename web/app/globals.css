@@ -194,12 +194,13 @@ select,
 }
 
 /* ============================================================================
-   Kindello design-system tokens (.claude/skills/design-system/tokens/*.css)
-   ported into the app. The directory surfaces (homepage / results / detail)
-   and the chat experience read these raw tokens directly via inline styles.
-   Surface/fg/muted aliases point at the existing oklch theme vars so the whole
-   palette follows light/dark automatically; only the soft tint bands are
-   re-darkened under .dark.
+   Kindello design-system tokens — the single source of truth now lives here
+   (the original design-system skill they were ported from has been deleted).
+   These raw :root vars are mapped onto Tailwind utilities in the @theme block
+   above (bg-teal-500, shadow-teal, text-body, …); components consume the
+   utilities, not the vars directly. Surface/fg/muted aliases point at the
+   existing oklch theme vars so the whole palette follows light/dark
+   automatically; only the soft tint bands are re-darkened under .dark.
    ========================================================================== */
 :root {
 	/* Brand: teal */
