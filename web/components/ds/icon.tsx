@@ -159,6 +159,16 @@ const PATHS: Record<string, React.ReactNode> = {
 		</>
 	),
 	bookmark: <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />,
+	x: <path d="M18 6 6 18M6 6l12 12" />,
+	list: (
+		<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+	),
+	map: (
+		<>
+			<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" />
+			<path d="M9 4v14M15 6v14" />
+		</>
+	),
 };
 
 export type IconName = keyof typeof PATHS | string;

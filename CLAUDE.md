@@ -152,6 +152,7 @@ Next.js 16 (App Router, TS, Tailwind v4) — **this is Next.js 16, newer than tr
 - Env: `.env.local` (git-ignored, real) vs `.env.example` (committed template). Keys: `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` — only need the providers you select.
 - [ ] Maps-link fallback for the ~7.3% ungeocoded (see Geocoding "Gotcha"); optional: geocode the hard tail via API.
 - [ ] Further enrichment (Google Places, fees/vacancies, ABN). Web app, B2B API.
+- [ ] **Retry-with-backoff on provider 429s** in `app/api/chat/route.ts` — catch rate-limit errors, honour the provider's `try again in Ns` hint with a bounded exponential backoff, and surface a brief "one moment" state instead of a hard failure. _Why:_ OpenAI Tier 1 caps `gpt-4o` at **30,000 TPM** (input+output, rolling 60s, all concurrent requests; separate per model). A single chat turn re-sends system prompt + history + `searchCentres` rows (~12k tokens), so two or three quick messages burst past 30k and OpenAI returns `429 rate_limit_exceeded` (`Limit 30000, Used 25501, Requested 12052. Please try again in 15.106s`). Retry/backoff makes the burst recover gracefully; the durable fix is a tier bump (Tier 2 = 450k TPM) and/or trimming per-request tokens (fewer SELECTed fields, cap carded results).
 
 ## Geocoding (G-NAF)
 

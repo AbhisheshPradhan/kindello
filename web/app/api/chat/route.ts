@@ -89,18 +89,47 @@ questions must appear ONLY inside that tool call. NEVER write them into your rep
 turns the tool call into tappable buttons; any question you type as text is dead, unclickable text, \
 which is a bug. So: one sentence of prose, then the suggestFollowUps tool call, nothing else.`;
 
+// The Finder gives the model the parent's CURRENT filter state each turn (set via chat OR
+// the filter chips), so a refinement builds on the live filters instead of being re-derived
+// from the transcript. The model should treat these as already-applied and only change what
+// the parent asks to change.
+function stateContext(state?: SearchStateContext): string {
+	if (!state?.location) return "";
+	const bits: string[] = [`location = ${state.location.label}`];
+	if (state.careType) bits.push(`care type = ${state.careType}`);
+	if (state.minRating) bits.push(`min NQS rating = ${state.minRating}`);
+	if (state.radiusKm) bits.push(`radius = ${state.radiusKm}km`);
+	if (state.size) bits.push(`size = ${state.size}`);
+	if (state.keyword) bits.push(`keyword = ${state.keyword}`);
+	return `\n\nCURRENT FILTERS (already applied via chat or the filter chips; keep them unless the parent changes one): ${bits.join(", ")}. When the parent refines, call searchCentres with these PLUS their change. The coordinates for "${state.location.label}" are latitude ${state.location.lat}, longitude ${state.location.lng} — reuse them; you do not need to call resolveLocation again unless the parent names a new place.`;
+}
+
+type SearchStateContext = {
+	location?: { label: string; lat: number; lng: number } | null;
+	careType?: string | null;
+	minRating?: string | null;
+	radiusKm?: number;
+	size?: string | null;
+	keyword?: string | null;
+};
+
 export async function POST(req: Request) {
 	const {
 		messages,
 		model,
 		sessionId,
-	}: { messages: UIMessage[]; model?: string; sessionId?: string } =
-		await req.json();
+		searchState,
+	}: {
+		messages: UIMessage[];
+		model?: string;
+		sessionId?: string;
+		searchState?: SearchStateContext;
+	} = await req.json();
 	const chosen = model ?? DEFAULT_MODEL;
 
 	const result = streamText({
 		model: modelFor(chosen),
-		system: SYSTEM,
+		system: SYSTEM + stateContext(searchState),
 		tools: { resolveLocation, searchCentres, suggestFollowUps },
 		stopWhen: stepCountIs(6), // allow resolve -> search -> answer (and a retry)
 		messages: await convertToModelMessages(messages),
