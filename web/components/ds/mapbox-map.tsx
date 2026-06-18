@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { useTheme } from "next-themes";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -11,10 +11,8 @@ import { PinCard } from "@/components/finder/pin-card";
 const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
 /**
- * Mapbox Standard — the full-colour vector basemap (green parks, blue water,
- * coloured roads/labels). One style for both themes: we switch its `lightPreset`
- * config (`day`/`night`) to follow next-themes instead of swapping styles. Left
- * untinted — brand identity lives in the teal pins, not the basemap.
+ * Mapbox Standard — the full-colour vector basemap. One style for both themes:
+ * we switch its `lightPreset` config (`day`/`night`) to follow next-themes.
  */
 const STYLE_STANDARD = "mapbox://styles/mapbox/standard";
 
@@ -38,8 +36,7 @@ function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): nu
 	return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-// The pin SVG + tier styling live in the reusable ./rating-pin module. Here we just paint
-// it onto a marker element and manage interaction state.
+// The pin SVG + tier styling live in the reusable ./rating-pin module.
 function renderPin(el: HTMLElement, p: MapPoint, state: PinState) {
 	el.innerHTML = pinSvg(p.rating, state);
 }
@@ -63,22 +60,61 @@ function persistViewed(viewed: Set<string>) {
 	}
 }
 
+type GlMap = import("mapbox-gl").Map;
+type Mapboxgl = typeof import("mapbox-gl").default;
+
+// Fit the view to the points: symmetric bounds about the anchor (so the searched suburb
+// stays dead-centre and no outlier is clipped), else fit the raw pin cluster.
+function fitToPoints(
+	map: GlMap,
+	mapboxgl: Mapboxgl,
+	valid: MapPoint[],
+	anchor: { lat: number; lng: number } | null,
+) {
+	if (!valid.length) return;
+	if (anchor) {
+		let dLat = 0;
+		let dLng = 0;
+		for (const p of valid) {
+			dLat = Math.max(dLat, Math.abs(p.lat - anchor.lat));
+			dLng = Math.max(dLng, Math.abs(p.lng - anchor.lng));
+		}
+		if (dLat < 1e-4 && dLng < 1e-4) {
+			map.setCenter([anchor.lng, anchor.lat]);
+			map.setZoom(14);
+		} else {
+			map.fitBounds(
+				new mapboxgl.LngLatBounds(
+					[anchor.lng - dLng, anchor.lat - dLat],
+					[anchor.lng + dLng, anchor.lat + dLat],
+				),
+				{ padding: { top: 72, bottom: 56, left: 56, right: 56 }, maxZoom: 15, duration: 0 },
+			);
+		}
+	} else if (valid.length === 1) {
+		map.setCenter([valid[0].lng, valid[0].lat]);
+		map.setZoom(15);
+	} else {
+		const bounds = new mapboxgl.LngLatBounds();
+		for (const p of valid) bounds.extend([p.lng, p.lat]);
+		map.fitBounds(bounds, { padding: 56, maxZoom: 15, duration: 0 });
+	}
+}
+
 /**
- * MapboxMap — the real-map layer rendered by {@link MapPreview} when
- * NEXT_PUBLIC_MAPBOX_TOKEN is set. Fills its (sized) parent, fits the view to
- * the points, and drops teal rating markers (reusing `pinTone`). Lazy-loaded
- * via `next/dynamic` so mapbox-gl + its CSS never ship unless a token is present.
+ * MapboxMap — the real-map layer rendered by {@link MapPreview} when a token is set.
+ * The map instance is created ONCE; subsequent point/filter changes only swap the
+ * markers (no teardown/flicker). Finder extras (popup, states, visited, Search-this-area)
+ * are opt-in via `interactive` / `onRegionChange`.
  */
 export default function MapboxMap({
 	points = [],
 	center,
-	showLabels = false,
 	interactive = false,
 	onRegionChange,
 }: {
 	points?: MapPoint[];
 	center?: { lat: number; lng: number } | null;
-	showLabels?: boolean;
 	/** Finder opt-in: pin hover/selected/visited states + click-to-open PinCard popup. */
 	interactive?: boolean;
 	/** Finder opt-in: emits the map region on user pan/zoom for "Search this area" (null = hide). */
@@ -86,226 +122,139 @@ export default function MapboxMap({
 }) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const { resolvedTheme } = useTheme();
-	// Read via ref so changing the handler doesn't re-init the map (and avoids stale closures).
+
+	// Persisted-across-renders handles (the map lives for the component's whole lifetime).
+	const mapRef = useRef<GlMap | null>(null);
+	const glRef = useRef<Mapboxgl | null>(null);
+	const markersRef = useRef<import("mapbox-gl").Marker[]>([]);
+	const popupRef = useRef<import("mapbox-gl").Popup | null>(null);
+	const cardRootRef = useRef<Root | null>(null);
+	const selectedRef = useRef<{ id?: string; el: HTMLElement; p: MapPoint } | null>(null);
+	const switchingRef = useRef(false);
+	const viewedRef = useRef<Set<string>>(new Set());
+	const firstFitRef = useRef(false);
+	// "Search this area" baseline = the last searched view; reset after each fit.
+	const baseCenterRef = useRef<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
+	const baseRadiusRef = useRef(0);
+	// Read theme/handler via refs so they don't force a map rebuild.
+	const themeRef = useRef(resolvedTheme);
+	themeRef.current = resolvedTheme;
 	const onRegionChangeRef = useRef(onRegionChange);
 	onRegionChangeRef.current = onRegionChange;
 
+	const [ready, setReady] = useState(false);
+
 	const valid = points.filter(isValid);
 	const anchor =
-		center && Number.isFinite(center.lat) && Number.isFinite(center.lng)
-			? center
-			: null;
-	// Re-init the map only when the points, anchor, or theme actually change.
+		center && Number.isFinite(center.lat) && Number.isFinite(center.lng) ? center : null;
+	// Markers re-render only when the points or anchor actually change.
 	const ptsKey =
 		valid
-			.map((p) => `${p.lat},${p.lng},${p.rating ?? ""},${p.label ?? ""}`)
+			.map((p) => `${p.lat},${p.lng},${p.rating ?? ""},${p.id ?? ""}`)
 			.join("|") + `;c=${anchor ? `${anchor.lat},${anchor.lng}` : ""}`;
 
+	const baseState = useCallback(
+		(p: MapPoint): PinState =>
+			p.id && viewedRef.current.has(p.id) ? "visited" : "default",
+		[],
+	);
+
+	const deselect = useCallback(
+		(markVisited: boolean) => {
+			const s = selectedRef.current;
+			if (!s) return;
+			if (markVisited && s.id) {
+				viewedRef.current.add(s.id);
+				persistViewed(viewedRef.current);
+			}
+			renderPin(s.el, s.p, baseState(s.p));
+			selectedRef.current = null;
+		},
+		[baseState],
+	);
+
+	// ---- create the map ONCE ----
 	useEffect(() => {
 		const container = containerRef.current;
-		if (!container || !TOKEN || !valid.length) return;
-
+		if (!container || !TOKEN) return;
 		let cancelled = false;
-		// mapbox map + markers are created in the async block; typed loosely here.
-		let map: import("mapbox-gl").Map | undefined;
-		let markers: import("mapbox-gl").Marker[] = [];
-		// React root mounted into the popup card; unmounted on close/content-change/teardown.
-		let cardRoot: Root | null = null;
 
 		(async () => {
 			const mapboxgl = (await import("mapbox-gl")).default;
 			if (cancelled || !containerRef.current) return;
+			glRef.current = mapboxgl;
 			mapboxgl.accessToken = TOKEN;
 
-			map = new mapboxgl.Map({
+			const map = new mapboxgl.Map({
 				container,
 				style: STYLE_STANDARD,
 				attributionControl: false,
-				// Plain wheel-zoom (no modifier key): the wheel zooms the map
-				// directly. Trade-off — while the pointer is over the map the
-				// page won't scroll. Pinch-zoom on touch works regardless.
 				cooperativeGestures: false,
 			});
-			// Match the basemap to the app theme via Standard's day/night light
-			// preset, and hide POI labels (restaurants/cafes/attractions) so they
-			// don't compete with our childcare pins — keep place/road labels for
-			// orientation. Set once the Standard style + its config are loaded.
+			mapRef.current = map;
+
 			map.on("style.load", () => {
-				map!.setConfigProperty(
+				map.setConfigProperty(
 					"basemap",
 					"lightPreset",
-					resolvedTheme === "dark" ? "night" : "day",
+					themeRef.current === "dark" ? "night" : "day",
 				);
-				map!.setConfigProperty("basemap", "showPointOfInterestLabels", false);
-				// Flat 2D — no 3D buildings (keep the map calm and legible).
-				map!.setConfigProperty("basemap", "show3dObjects", false);
+				map.setConfigProperty("basemap", "showPointOfInterestLabels", false);
+				map.setConfigProperty("basemap", "show3dObjects", false);
 			});
 			map.addControl(new mapboxgl.AttributionControl({ compact: true }));
-
-			// Keep it simple: a flat, north-up 2D map. No rotation, no pitch/3D tilt.
+			// Flat, north-up 2D — no rotation/pitch/3D.
 			map.dragRotate.disable();
 			map.touchZoomRotate.disableRotation();
 			map.touchPitch.disable();
 			map.setMaxPitch(0);
 
-			// Interactive (Finder) extras are OPT-IN. Plain consumers (chat, detail) pass
-			// interactive=false and get static pins only — no popups, no hover/selected
-			// states, no visited writes. See CLAUDE.md "one reusable map component".
-			const viewed = interactive ? loadViewed() : new Set<string>();
-			const baseState = (p: MapPoint): PinState =>
-				p.id && viewed.has(p.id) ? "visited" : "default";
-
-			// One reused popup — clicking a pin opens its card; clicking another moves it.
-			const popup = interactive
-				? new mapboxgl.Popup({
-						// Clear the SELECTED pin (~44px tall) so the card sits above it and
-						// its tip meets the pin head instead of overlapping the larger pin.
-						offset: 44,
-						closeButton: true,
-						closeOnClick: true,
-						maxWidth: "280px",
-						className: "kindello-pin-popup",
-					})
-				: null;
-
-			// The currently-selected pin (popup open). Cleared/marked-visited on dismiss.
-			let selected: { id?: string; el: HTMLElement; p: MapPoint } | null = null;
-			// Mapbox's Popup.addTo() calls remove() first (firing "close") when moving an
-			// open popup to another pin. This guards that programmatic close so only a REAL
-			// dismissal (X / map click / Esc) marks the centre visited.
-			let switching = false;
-
-			const deselect = (markVisited: boolean) => {
-				if (!selected) return;
-				if (markVisited && selected.id) {
-					viewed.add(selected.id);
-					persistViewed(viewed);
-				}
-				renderPin(selected.el, selected.p, baseState(selected.p));
-				selected = null;
-			};
-
-			// Dismissing the popup (X, map click, Esc) marks the open centre as visited.
-			popup?.on("close", () => {
-				if (switching) return; // pin-to-pin switch, not a real dismissal
-				deselect(true);
-				cardRoot?.unmount();
-				cardRoot = null;
-			});
-
-			for (const p of valid) {
-				const el = document.createElement("div");
-				el.className = interactive ? "cursor-pointer" : "";
-				if (p.label) el.title = p.label;
-				renderPin(el, p, baseState(p));
-
-				const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
-					.setLngLat([p.lng, p.lat])
-					.addTo(map);
-				markers.push(marker);
-
-				if (!interactive || !popup) continue;
-
-				el.addEventListener("mouseenter", () => {
-					if (selected?.el === el) return;
-					renderPin(el, p, "hover");
+			if (interactive) {
+				viewedRef.current = loadViewed();
+				const popup = new mapboxgl.Popup({
+					offset: 44, // clears the larger selected pin
+					closeButton: true,
+					closeOnClick: true,
+					maxWidth: "280px",
+					className: "kindello-pin-popup",
 				});
-				el.addEventListener("mouseleave", () => {
-					if (selected?.el === el) return;
-					renderPin(el, p, baseState(p));
-				});
-				el.addEventListener("click", (e) => {
-					e.stopPropagation();
-					if (selected?.el === el) return; // already open
-					deselect(true); // previous open pin becomes visited
-					selected = { id: p.id, el, p };
-					renderPin(el, p, "selected");
-
-					const container = document.createElement("div");
-					cardRoot?.unmount();
-					cardRoot = createRoot(container);
-					cardRoot.render(<PinCard p={p} />);
-					// Guard the close fired by addTo()'s internal remove() during the swap.
-					switching = true;
-					popup.setLngLat([p.lng, p.lat]).setDOMContent(container).addTo(map!);
-					switching = false;
+				popupRef.current = popup;
+				popup.on("close", () => {
+					if (switchingRef.current) return; // pin-to-pin swap, not a real dismissal
+					deselect(true);
+					const root = cardRootRef.current;
+					cardRootRef.current = null;
+					if (root) setTimeout(() => root.unmount(), 0);
 				});
 			}
 
-			if (anchor) {
-				// Keep the searched suburb dead-center and zoom to the tightest
-				// level that still shows every pin: build bounds SYMMETRIC about
-				// the anchor (its centroid is therefore the anchor) so fitBounds
-				// neither drifts toward the pin cluster nor clips an outlier.
-				let dLat = 0;
-				let dLng = 0;
-				for (const p of valid) {
-					dLat = Math.max(dLat, Math.abs(p.lat - anchor.lat));
-					dLng = Math.max(dLng, Math.abs(p.lng - anchor.lng));
-				}
-				if (dLat < 1e-4 && dLng < 1e-4) {
-					// Degenerate (suburb-only fallback pin, or all pins on the
-					// suburb): nothing to fit — land at a neighbourhood zoom.
-					map.setCenter([anchor.lng, anchor.lat]);
-					map.setZoom(14);
-				} else {
-					const bounds = new mapboxgl.LngLatBounds(
-						[anchor.lng - dLng, anchor.lat - dLat],
-						[anchor.lng + dLng, anchor.lat + dLat],
-					);
-					map.fitBounds(bounds, {
-						// Extra top padding: pins (label + teardrop) extend
-						// upward from their coordinate, so the top edge needs
-						// more room than the rest to avoid clipping.
-						padding: { top: 72, bottom: 56, left: 56, right: 56 },
-						maxZoom: 15,
-						duration: 0,
-					});
-				}
-			} else if (valid.length === 1) {
-				map.setCenter([valid[0].lng, valid[0].lat]);
-				map.setZoom(15);
-			} else {
-				const bounds = new mapboxgl.LngLatBounds();
-				for (const p of valid) bounds.extend([p.lng, p.lat]);
-				map.fitBounds(bounds, {
-					padding: 56,
-					maxZoom: 15,
-					duration: 0,
-				});
-			}
-
-			// "Search this area": offer a re-query when the user pans/zooms the map. The
-			// radius covers the viewport but is clamped, so zooming out never "shows
-			// everything"; beyond the clamp we don't offer (childcare is local).
-			if (onRegionChange) {
+			if (onRegionChangeRef.current) {
 				const viewportRadiusKm = () => {
-					const c = map!.getCenter();
-					const b = map!.getBounds();
+					const b = map.getBounds();
 					if (!b) return 0;
+					const c = map.getCenter();
 					const ne = b.getNorthEast();
 					return haversineKm(c.lat, c.lng, ne.lat, ne.lng);
 				};
-				// Baseline = the searched view; only offer once the user moves off it.
-				let baseCenter = { lat: map.getCenter().lat, lng: map.getCenter().lng };
-				let baseRadius = viewportRadiusKm();
-				map.once("idle", () => {
-					baseCenter = { lat: map!.getCenter().lat, lng: map!.getCenter().lng };
-					baseRadius = viewportRadiusKm();
-				});
 				map.on("moveend", (e) => {
 					if (!e.originalEvent) return; // ignore programmatic fit/setCenter
-					const c = map!.getCenter();
 					const r = viewportRadiusKm();
 					if (r > MAX_AREA_RADIUS_KM) {
 						onRegionChangeRef.current?.(null); // too zoomed out — don't offer
 						return;
 					}
-					const movedKm = haversineKm(baseCenter.lat, baseCenter.lng, c.lat, c.lng);
+					const c = map.getCenter();
+					const moved = haversineKm(
+						baseCenterRef.current.lat,
+						baseCenterRef.current.lng,
+						c.lat,
+						c.lng,
+					);
 					const zoomChanged =
-						baseRadius > 0 && Math.abs(r - baseRadius) / baseRadius > 0.25;
-					if (movedKm < r * 0.3 && !zoomChanged) {
-						onRegionChangeRef.current?.(null); // negligible move — keep prompt hidden
+						baseRadiusRef.current > 0 &&
+						Math.abs(r - baseRadiusRef.current) / baseRadiusRef.current > 0.25;
+					if (moved < r * 0.3 && !zoomChanged) {
+						onRegionChangeRef.current?.(null);
 						return;
 					}
 					onRegionChangeRef.current?.({
@@ -315,31 +264,119 @@ export default function MapboxMap({
 					});
 				});
 			}
+
+			map.on("load", () => {
+				if (!cancelled) setReady(true);
+			});
 		})();
 
 		return () => {
 			cancelled = true;
-			for (const m of markers) m.remove();
-			markers = [];
-			// Defer unmount: React forbids unmounting a root while React is mid-render.
-			if (cardRoot) {
-				const root = cardRoot;
-				cardRoot = null;
-				setTimeout(() => root.unmount(), 0);
-			}
-			if (map) map.remove();
+			for (const m of markersRef.current) m.remove();
+			markersRef.current = [];
+			const root = cardRootRef.current;
+			cardRootRef.current = null;
+			if (root) setTimeout(() => root.unmount(), 0); // React forbids unmount mid-render
+			popupRef.current?.remove();
+			popupRef.current = null;
+			mapRef.current?.remove();
+			mapRef.current = null;
+			setReady(false);
 		};
-	}, [ptsKey, resolvedTheme, showLabels, interactive]);
+	}, [interactive, deselect]);
+
+	// ---- follow the app theme without rebuilding the map ----
+	useEffect(() => {
+		const map = mapRef.current;
+		if (!ready || !map) return;
+		try {
+			map.setConfigProperty(
+				"basemap",
+				"lightPreset",
+				resolvedTheme === "dark" ? "night" : "day",
+			);
+		} catch {
+			/* style not ready yet — style.load handler covers the initial set */
+		}
+	}, [resolvedTheme, ready]);
+
+	// ---- swap markers when the points change (NO map teardown = no flicker) ----
+	useEffect(() => {
+		const map = mapRef.current;
+		const mapboxgl = glRef.current;
+		if (!ready || !map || !mapboxgl) return;
+
+		// Close any open popup and clear the old markers.
+		popupRef.current?.remove();
+		selectedRef.current = null;
+		for (const m of markersRef.current) m.remove();
+		markersRef.current = [];
+
+		const popup = popupRef.current;
+		for (const p of valid) {
+			const el = document.createElement("div");
+			el.className = interactive ? "cursor-pointer" : "";
+			if (p.label) el.title = p.label;
+			renderPin(el, p, baseState(p));
+
+			const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
+				.setLngLat([p.lng, p.lat])
+				.addTo(map);
+			markersRef.current.push(marker);
+
+			if (!interactive || !popup) continue;
+
+			el.addEventListener("mouseenter", () => {
+				if (selectedRef.current?.el === el) return;
+				renderPin(el, p, "hover");
+			});
+			el.addEventListener("mouseleave", () => {
+				if (selectedRef.current?.el === el) return;
+				renderPin(el, p, baseState(p));
+			});
+			el.addEventListener("click", (e) => {
+				e.stopPropagation();
+				if (selectedRef.current?.el === el) return; // already open
+				deselect(true); // previous open pin becomes visited
+				selectedRef.current = { id: p.id, el, p };
+				renderPin(el, p, "selected");
+
+				const container = document.createElement("div");
+				cardRootRef.current?.unmount();
+				cardRootRef.current = createRoot(container);
+				cardRootRef.current.render(<PinCard p={p} />);
+				switchingRef.current = true; // guard the close from addTo()'s internal remove()
+				popup.setLngLat([p.lng, p.lat]).setDOMContent(container).addTo(map);
+				switchingRef.current = false;
+			});
+		}
+
+		// Recenter ONLY on first load or a genuinely new location (typed suburb / AI).
+		// "Search this area" sets the anchor to the current map centre, so we don't refit
+		// then — the pins just repopulate and the camera stays put (no jump).
+		const cur = map.getCenter();
+		const movedFar = anchor
+			? haversineKm(anchor.lat, anchor.lng, cur.lat, cur.lng) > 1.5
+			: false;
+		if (!firstFitRef.current || movedFar) {
+			fitToPoints(map, mapboxgl, valid, anchor);
+			firstFitRef.current = true;
+		}
+
+		// Reset the Search-this-area baseline to the current (searched) view.
+		const c2 = map.getCenter();
+		const b2 = map.getBounds();
+		baseCenterRef.current = { lat: c2.lat, lng: c2.lng };
+		baseRadiusRef.current = b2
+			? haversineKm(c2.lat, c2.lng, b2.getNorthEast().lat, b2.getNorthEast().lng)
+			: 0;
+	}, [ready, ptsKey, interactive, anchor, baseState, deselect]);
 
 	return (
-		// h-full w-full (not absolute inset-0): mapbox-gl's own CSS forces
-		// `.mapboxgl-map { position: relative }`, which overrides Tailwind's
-		// `absolute` and collapses an inset-0 box to height 0. A relative box
-		// with h-full fills the parent's definite height instead.
+		// h-full w-full: mapbox-gl forces `.mapboxgl-map { position: relative }`, which
+		// overrides Tailwind `absolute` and collapses inset-0 to height 0.
 		<div
 			ref={containerRef}
-			// Supplementary view — the same centres are listed as text cards, so
-			// label the region rather than expecting SR users to navigate the canvas.
 			role="img"
 			aria-label="Map of nearby childcare centres"
 			className="h-full w-full"

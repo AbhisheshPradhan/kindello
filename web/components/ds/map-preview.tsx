@@ -117,7 +117,6 @@ export function MapPreview({
 				<MapboxMap
 					points={points}
 					center={center}
-					showLabels={showLabels}
 					interactive={interactive}
 					onRegionChange={onRegionChange}
 				/>
