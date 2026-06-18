@@ -100,7 +100,10 @@ export function MapPreview({
 	style?: CSSProperties;
 }) {
 	const placed = normalise(points);
-	const useMapbox = Boolean(MAPBOX_TOKEN) && placed.length > 0;
+	// Keep the real map mounted whenever we have a token AND either pins or a center to
+	// anchor on — so "no matches here" shows an empty map at the location, not a blank
+	// placeholder (and the persistent map instance isn't torn down on a 0-result search).
+	const useMapbox = Boolean(MAPBOX_TOKEN) && (placed.length > 0 || !!center);
 	return (
 		<div
 			aria-hidden={!points.length}
