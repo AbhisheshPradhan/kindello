@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Icon } from "@/components/ds/icon";
-import { MapPreview } from "@/components/ds/map-preview";
+import { MapPreview, type MapRegion } from "@/components/ds/map-preview";
 import { PlaceResultCard } from "@/components/ds/place-result-card";
 import type { Centre } from "@/components/centre-card";
 import { summariseHours } from "@/lib/format";
@@ -104,6 +105,7 @@ export function ResultsCanvas({
 	onView,
 	state,
 	onChange,
+	onSearchArea,
 }: {
 	result: SearchResult | null;
 	loading: boolean;
@@ -111,7 +113,15 @@ export function ResultsCanvas({
 	onView: (v: "map" | "list") => void;
 	state: SearchState;
 	onChange: (delta: Partial<SearchState>) => void;
+	onSearchArea: (region: MapRegion) => void;
 }) {
+	// "Search this area" prompt — set when the user pans/zooms the map off the search view.
+	const [pendingArea, setPendingArea] = useState<MapRegion | null>(null);
+	// A fresh search (new centre/results) supersedes any pending pan prompt.
+	useEffect(() => {
+		setPendingArea(null);
+	}, [result]);
+
 	// No anchor yet — invite a filter-first OR chat-first start.
 	if (!state.location) {
 		return (
@@ -195,12 +205,27 @@ export function ResultsCanvas({
 			{view === "map" ? (
 				// Map-first (realestate.com.au style): the map fills the canvas; cards are
 				// hidden here and live on the List tab so the map gets the full height.
-				<div className="flex-1 min-h-0">
+				<div className="relative flex-1 min-h-0">
 					<MapPreview
 						points={points}
 						center={result?.center}
 						height="100%"
+						interactive
+						onRegionChange={setPendingArea}
 					/>
+					{pendingArea && (
+						<button
+							type="button"
+							onClick={() => {
+								onSearchArea(pendingArea);
+								setPendingArea(null);
+							}}
+							className="absolute top-3 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-2 rounded-full bg-card border border-border shadow-lg px-4 py-2 text-[13.5px] font-semibold text-teal-700 hover:bg-teal-50"
+						>
+							<Icon name="search" size={15} />
+							Search this area
+						</button>
+					)}
 				</div>
 			) : (
 				<div className="overflow-y-auto flex-1 min-h-0">

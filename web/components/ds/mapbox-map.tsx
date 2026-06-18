@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { useTheme } from "next-themes";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { type MapPoint } from "./map-preview";
+import { type MapPoint, type MapRegion } from "./map-preview";
 import { pinSvg, type PinState } from "./rating-pin";
 import { PinCard } from "@/components/finder/pin-card";
 
@@ -20,6 +20,22 @@ const STYLE_STANDARD = "mapbox://styles/mapbox/standard";
 
 function isValid(p: MapPoint) {
 	return Number.isFinite(p.lat) && Number.isFinite(p.lng);
+}
+
+// Radius the Finder clamps "Search this area" to (km) — beyond this zoom-out we don't
+// offer an area search (childcare is local; searching half a state is meaningless).
+const MAX_AREA_RADIUS_KM = 30;
+
+function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+	const R = 6371;
+	const dLat = ((bLat - aLat) * Math.PI) / 180;
+	const dLng = ((bLng - aLng) * Math.PI) / 180;
+	const la1 = (aLat * Math.PI) / 180;
+	const la2 = (bLat * Math.PI) / 180;
+	const h =
+		Math.sin(dLat / 2) ** 2 +
+		Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+	return 2 * R * Math.asin(Math.sqrt(h));
 }
 
 // The pin SVG + tier styling live in the reusable ./rating-pin module. Here we just paint
@@ -57,13 +73,22 @@ export default function MapboxMap({
 	points = [],
 	center,
 	showLabels = false,
+	interactive = false,
+	onRegionChange,
 }: {
 	points?: MapPoint[];
 	center?: { lat: number; lng: number } | null;
 	showLabels?: boolean;
+	/** Finder opt-in: pin hover/selected/visited states + click-to-open PinCard popup. */
+	interactive?: boolean;
+	/** Finder opt-in: emits the map region on user pan/zoom for "Search this area" (null = hide). */
+	onRegionChange?: (region: MapRegion | null) => void;
 }) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const { resolvedTheme } = useTheme();
+	// Read via ref so changing the handler doesn't re-init the map (and avoids stale closures).
+	const onRegionChangeRef = useRef(onRegionChange);
+	onRegionChangeRef.current = onRegionChange;
 
 	const valid = points.filter(isValid);
 	const anchor =
@@ -123,27 +148,32 @@ export default function MapboxMap({
 			map.touchPitch.disable();
 			map.setMaxPitch(0);
 
-			// One reused popup — clicking a pin opens its card; clicking another moves it.
-			const popup = new mapboxgl.Popup({
-				// Clear the SELECTED pin (~44px tall) so the card sits above it and its
-				// tip meets the pin head instead of overlapping the larger open-state pin.
-				offset: 44,
-				closeButton: true,
-				closeOnClick: true,
-				maxWidth: "280px",
-				className: "kindello-pin-popup",
-			});
+			// Interactive (Finder) extras are OPT-IN. Plain consumers (chat, detail) pass
+			// interactive=false and get static pins only — no popups, no hover/selected
+			// states, no visited writes. See CLAUDE.md "one reusable map component".
+			const viewed = interactive ? loadViewed() : new Set<string>();
+			const baseState = (p: MapPoint): PinState =>
+				p.id && viewed.has(p.id) ? "visited" : "default";
 
-			const viewed = loadViewed();
+			// One reused popup — clicking a pin opens its card; clicking another moves it.
+			const popup = interactive
+				? new mapboxgl.Popup({
+						// Clear the SELECTED pin (~44px tall) so the card sits above it and
+						// its tip meets the pin head instead of overlapping the larger pin.
+						offset: 44,
+						closeButton: true,
+						closeOnClick: true,
+						maxWidth: "280px",
+						className: "kindello-pin-popup",
+					})
+				: null;
+
 			// The currently-selected pin (popup open). Cleared/marked-visited on dismiss.
 			let selected: { id?: string; el: HTMLElement; p: MapPoint } | null = null;
 			// Mapbox's Popup.addTo() calls remove() first (firing "close") when moving an
 			// open popup to another pin. This guards that programmatic close so only a REAL
 			// dismissal (X / map click / Esc) marks the centre visited.
 			let switching = false;
-
-			const baseState = (p: MapPoint): PinState =>
-				p.id && viewed.has(p.id) ? "visited" : "default";
 
 			const deselect = (markVisited: boolean) => {
 				if (!selected) return;
@@ -156,7 +186,7 @@ export default function MapboxMap({
 			};
 
 			// Dismissing the popup (X, map click, Esc) marks the open centre as visited.
-			popup.on("close", () => {
+			popup?.on("close", () => {
 				if (switching) return; // pin-to-pin switch, not a real dismissal
 				deselect(true);
 				cardRoot?.unmount();
@@ -165,13 +195,16 @@ export default function MapboxMap({
 
 			for (const p of valid) {
 				const el = document.createElement("div");
-				el.className = "cursor-pointer";
+				el.className = interactive ? "cursor-pointer" : "";
 				if (p.label) el.title = p.label;
 				renderPin(el, p, baseState(p));
 
 				const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
 					.setLngLat([p.lng, p.lat])
 					.addTo(map);
+				markers.push(marker);
+
+				if (!interactive || !popup) continue;
 
 				el.addEventListener("mouseenter", () => {
 					if (selected?.el === el) return;
@@ -197,8 +230,6 @@ export default function MapboxMap({
 					popup.setLngLat([p.lng, p.lat]).setDOMContent(container).addTo(map!);
 					switching = false;
 				});
-
-				markers.push(marker);
 			}
 
 			if (anchor) {
@@ -243,6 +274,47 @@ export default function MapboxMap({
 					duration: 0,
 				});
 			}
+
+			// "Search this area": offer a re-query when the user pans/zooms the map. The
+			// radius covers the viewport but is clamped, so zooming out never "shows
+			// everything"; beyond the clamp we don't offer (childcare is local).
+			if (onRegionChange) {
+				const viewportRadiusKm = () => {
+					const c = map!.getCenter();
+					const b = map!.getBounds();
+					if (!b) return 0;
+					const ne = b.getNorthEast();
+					return haversineKm(c.lat, c.lng, ne.lat, ne.lng);
+				};
+				// Baseline = the searched view; only offer once the user moves off it.
+				let baseCenter = { lat: map.getCenter().lat, lng: map.getCenter().lng };
+				let baseRadius = viewportRadiusKm();
+				map.once("idle", () => {
+					baseCenter = { lat: map!.getCenter().lat, lng: map!.getCenter().lng };
+					baseRadius = viewportRadiusKm();
+				});
+				map.on("moveend", (e) => {
+					if (!e.originalEvent) return; // ignore programmatic fit/setCenter
+					const c = map!.getCenter();
+					const r = viewportRadiusKm();
+					if (r > MAX_AREA_RADIUS_KM) {
+						onRegionChangeRef.current?.(null); // too zoomed out — don't offer
+						return;
+					}
+					const movedKm = haversineKm(baseCenter.lat, baseCenter.lng, c.lat, c.lng);
+					const zoomChanged =
+						baseRadius > 0 && Math.abs(r - baseRadius) / baseRadius > 0.25;
+					if (movedKm < r * 0.3 && !zoomChanged) {
+						onRegionChangeRef.current?.(null); // negligible move — keep prompt hidden
+						return;
+					}
+					onRegionChangeRef.current?.({
+						lat: c.lat,
+						lng: c.lng,
+						radiusKm: Math.max(1, Math.min(MAX_AREA_RADIUS_KM, Math.round(r))),
+					});
+				});
+			}
 		})();
 
 		return () => {
@@ -257,7 +329,7 @@ export default function MapboxMap({
 			}
 			if (map) map.remove();
 		};
-	}, [ptsKey, resolvedTheme, showLabels]);
+	}, [ptsKey, resolvedTheme, showLabels, interactive]);
 
 	return (
 		// h-full w-full (not absolute inset-0): mapbox-gl's own CSS forces

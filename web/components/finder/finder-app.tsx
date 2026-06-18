@@ -102,6 +102,17 @@ export function FinderApp() {
 		[onChange],
 	);
 
+	// "Search this area": re-anchor on the panned map centre with the viewport radius.
+	const onSearchArea = useCallback(
+		(region: { lat: number; lng: number; radiusKm: number }) => {
+			onChange({
+				location: { lat: region.lat, lng: region.lng, label: "Map area" },
+				radiusKm: region.radiusKm,
+			});
+		},
+		[onChange],
+	);
+
 	const onAsk = useCallback(
 		(text: string) => {
 			setRailOpen(true);
@@ -181,6 +192,7 @@ export function FinderApp() {
 							onView={setView}
 							state={state}
 							onChange={onChange}
+							onSearchArea={onSearchArea}
 						/>
 					</div>
 				</main>

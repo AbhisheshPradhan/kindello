@@ -15,6 +15,9 @@ export type MapPoint = {
 	id?: string;
 };
 
+// A map viewport expressed as a centre + covering radius (km) — emitted for "Search this area".
+export type MapRegion = { lat: number; lng: number; radiusKm: number };
+
 /**
  * Real map (Mapbox GL) — lazy-loaded so mapbox-gl + its CSS only ship when a
  * token is present. `ssr: false` because mapbox-gl touches `window`.
@@ -73,6 +76,8 @@ export function MapPreview({
 	height = 220,
 	rounded = "var(--radius-xl)",
 	showLabels = false,
+	interactive = false,
+	onRegionChange,
 	children,
 	style,
 }: {
@@ -86,6 +91,10 @@ export function MapPreview({
 	height?: number | string;
 	rounded?: string;
 	showLabels?: boolean;
+	/** Opt-in (Finder): pin states + click-to-open PinCard popup + visited tracking. */
+	interactive?: boolean;
+	/** Opt-in (Finder): emits the map region on user pan/zoom for "Search this area". */
+	onRegionChange?: (region: MapRegion | null) => void;
 	/** Floating overlay (e.g. result cards in the Answer preview). */
 	children?: ReactNode;
 	style?: CSSProperties;
@@ -109,6 +118,8 @@ export function MapPreview({
 					points={points}
 					center={center}
 					showLabels={showLabels}
+					interactive={interactive}
+					onRegionChange={onRegionChange}
 				/>
 			) : (
 				<MapPlaceholder
