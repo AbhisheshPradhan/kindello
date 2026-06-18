@@ -190,6 +190,14 @@ export default function MapboxMap({
 				style: STYLE_STANDARD,
 				attributionControl: false,
 				cooperativeGestures: false,
+				// Start at the anchor (or the first pin) at a neighbourhood zoom so we never
+				// flash the whole globe before fitToPoints runs once the map loads.
+				center: anchor
+					? [anchor.lng, anchor.lat]
+					: valid[0]
+						? [valid[0].lng, valid[0].lat]
+						: [151.2093, -33.8688], // Sydney fallback
+				zoom: 11,
 			});
 			mapRef.current = map;
 
