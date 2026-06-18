@@ -571,6 +571,7 @@ export function ChatView({
 								models={models}
 								model={model}
 								onModelChange={onModelChange}
+								location={lastLoc?.label}
 							/>
 						</div>
 					</div>

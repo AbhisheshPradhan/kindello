@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Icon } from "./icon";
 
 export type ComposerModel = { id: string; label: string };
@@ -23,6 +23,7 @@ export function ChatComposer({
 	model,
 	onModelChange,
 	placeholderOverlay,
+	location,
 	style,
 }: {
 	placeholder?: string;
@@ -37,11 +38,22 @@ export function ChatComposer({
 	onModelChange?: (id: string) => void;
 	/** Optional node rendered behind the input (e.g. a typewriter placeholder). */
 	placeholderOverlay?: React.ReactNode;
+	/** Resolved search location label; defaults to "Anywhere in Australia". */
+	location?: string;
 	style?: CSSProperties;
 }) {
 	const big = size === "lg";
-	const inputRef = useRef<HTMLInputElement>(null);
+	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const [focused, setFocused] = useState(false);
+
+	// Auto-grow: reset to content height on every value change so the box
+	// expands as text wraps, capped at 300px (then it scrolls).
+	useEffect(() => {
+		const el = inputRef.current;
+		if (!el) return;
+		el.style.height = "0px";
+		el.style.height = `${el.scrollHeight}px`;
+	}, [value]);
 	const selectedLabel =
 		models?.find((m) => m.id === model)?.label ?? "Claude";
 	const canSend = !disabled && value.trim().length > 0;
@@ -70,6 +82,7 @@ export function ChatComposer({
 			<div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
 				{big && (
 					<span
+						className="hidden sm:inline-block"
 						style={{
 							color: "var(--teal-500)",
 							marginTop: 2,
@@ -102,15 +115,24 @@ export function ChatComposer({
 							{placeholderOverlay}
 						</div>
 					)}
-					<input
+					<textarea
 						ref={inputRef}
+						rows={1}
 						value={value}
 						onChange={(e) => onChange(e.target.value)}
 						onFocus={() => setFocused(true)}
 						onBlur={() => setFocused(false)}
+						onKeyDown={(e) => {
+							// Enter submits; Shift+Enter inserts a newline.
+							if (e.key === "Enter" && !e.shiftKey) {
+								e.preventDefault();
+								if (canSend) onSubmit(value);
+							}
+						}}
 						placeholder={placeholderOverlay ? "" : placeholder}
 						autoFocus={autoFocus}
 						style={{
+							display: "block",
 							width: "100%",
 							border: "none",
 							outline: "none",
@@ -121,6 +143,10 @@ export function ChatComposer({
 							caretColor: "var(--teal-500)",
 							lineHeight: 1.5,
 							padding: 0,
+							margin: 0,
+							resize: "none",
+							overflowY: "auto",
+							maxHeight: 300,
 						}}
 					/>
 				</div>
@@ -130,53 +156,43 @@ export function ChatComposer({
 					display: "flex",
 					alignItems: "center",
 					gap: 10,
-					marginTop: big ? 16 : 12,
+					marginTop: big ? 30 : 12,
 				}}
 			>
-				{!big && (
-					<span
-						style={{
-							width: 30,
-							height: 30,
-							borderRadius: 8,
-							border: "1px solid var(--border)",
-							display: "inline-flex",
-							alignItems: "center",
-							justifyContent: "center",
-							color: "var(--muted-fg)",
-						}}
-					>
-						<Icon
-							name="search"
-							size={16}
-						/>
-					</span>
-				)}
 				<span
 					style={{
 						display: "inline-flex",
 						alignItems: "center",
 						gap: 6,
-						border: "1px solid var(--border)",
-						borderRadius: "var(--radius-pill)",
-						padding: "6px 12px",
+						maxWidth: 220,
 						fontSize: 13,
 						fontWeight: 500,
-						color: "var(--text-body)",
+						color: location
+							? "var(--teal-700)"
+							: "var(--text-body)",
 					}}
 				>
 					<Icon
-						name="search"
+						name="map-pin"
 						size={14}
+						style={{ flex: "none" }}
 					/>{" "}
-					Search
+					<span
+						style={{
+							overflow: "hidden",
+							textOverflow: "ellipsis",
+							whiteSpace: "nowrap",
+						}}
+					>
+						{location ?? "Anywhere in Australia"}
+					</span>
 				</span>
 				<span style={{ flex: 1 }} />
 				{models && onModelChange ? (
 					<div
+						className="hidden sm:inline-flex"
 						style={{
 							position: "relative",
-							display: "inline-flex",
 							alignItems: "center",
 						}}
 					>
@@ -262,7 +278,7 @@ export function ChatComposer({
 					}}
 				>
 					<Icon
-						name="arrow-up"
+						name={big ? "arrow-right" : "arrow-up"}
 						size={big ? 22 : 17}
 					/>
 				</button>
