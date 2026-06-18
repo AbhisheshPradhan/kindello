@@ -573,9 +573,9 @@ export default async function CentrePage({
 										{centre.suburb ?? "this area"} centres
 										like this one for qualified educators, a
 										play-based program and a genuine focus
-										on school readiness. Confirm the
-										current program and availability when
-										you enquire.
+										on school readiness. Confirm the current
+										program and availability when you
+										enquire.
 									</p>
 								</div>
 							</section>
@@ -896,8 +896,8 @@ export default async function CentrePage({
 										marginBottom: 16,
 									}}
 								>
-									Preview reviews. Verified Google reviews
-									are being added to Kindello.
+									Preview reviews. Verified Google reviews are
+									being added to Kindello.
 								</p>
 								<div
 									style={{

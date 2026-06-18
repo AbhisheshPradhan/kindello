@@ -188,8 +188,8 @@ export default function Home() {
 							Find approved childcare, anywhere in Australia
 						</h2>
 						<p className="mt-3 text-muted-foreground">
-							Ask in plain English. I&rsquo;ll search by
-							location, care type, and quality rating.
+							Ask in plain English. I&rsquo;ll search by location,
+							care type, and quality rating.
 						</p>
 						<div className="mt-8">{composer}</div>
 						<div className="mt-5 flex flex-wrap items-center justify-center gap-2">
