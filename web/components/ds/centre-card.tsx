@@ -4,7 +4,7 @@ import { useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import { Icon } from "./icon";
 import { Tag } from "./tag";
-import { RatingBadge } from "./rating-badge";
+import { RatingTag } from "./rating-tag";
 import { StarRating } from "./star-rating";
 
 const PHOTO_GRADS = [
@@ -156,7 +156,7 @@ export function CentreCard({
 					>
 						{name}
 					</h3>
-					<RatingBadge rating={nqs} />
+					<RatingTag rating={nqs} />
 				</div>
 
 				<div

@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { formatAuPhone } from "@/lib/utils";
 import { Icon } from "./icon";
+import { RatingTag } from "./rating-tag";
 
 const GRADS = [
 	"linear-gradient(135deg,#2fb3b3,#136d6d)",
@@ -34,6 +35,7 @@ export function PlaceResultCard({
 	href,
 	onMore,
 	style,
+	nqsRating,
 }: {
 	name?: string;
 	suburb?: string;
@@ -47,6 +49,8 @@ export function PlaceResultCard({
 	href?: string;
 	onMore?: () => void;
 	style?: CSSProperties;
+	/** Raw ACECQA NQS rating — when set, renders the canonical RatingTag on the card. */
+	nqsRating?: string | null;
 }) {
 	return (
 		<div
@@ -71,6 +75,14 @@ export function PlaceResultCard({
 				<div className="text-[15.5px] font-semibold text-foreground truncate">
 					{name}
 				</div>
+				{nqsRating !== undefined && (
+					<div>
+						<RatingTag
+							rating={nqsRating}
+							size="sm"
+						/>
+					</div>
+				)}
 				<div className="text-[13.5px] text-body flex items-center gap-1.5">
 					<span className="text-sun-400">★</span>
 					<strong className="text-foreground font-semibold font-mono">

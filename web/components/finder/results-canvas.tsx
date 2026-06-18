@@ -84,6 +84,7 @@ function CentreGrid({ centres }: { centres: Centre[] }) {
 							.join(", ") || null
 					}
 					verified={false}
+					nqsRating={c.overall_rating}
 					rating={nqsStar(c.overall_rating)}
 					reviews={(i + 3) * 17}
 					placesNow={c.places != null ? `${c.places} approved places` : null}

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { SiteHeader } from "@/components/ds/site-header";
 import { SiteFooter } from "@/components/ds/site-footer";
 import { CentreCard } from "@/components/ds/centre-card";
-import { RatingBadge } from "@/components/ds/rating-badge";
+import { RatingTag } from "@/components/ds/rating-tag";
 import { StarRating } from "@/components/ds/star-rating";
 import { Tag } from "@/components/ds/tag";
 import { Icon, type IconName } from "@/components/ds/icon";
@@ -267,7 +267,7 @@ export default async function CentrePage({
 					<div className="flex flex-wrap gap-5 items-start justify-between">
 						<div className="max-w-160">
 							<div className="flex flex-wrap items-center gap-2.5 mb-3">
-								<RatingBadge rating={centre.rating} />
+								<RatingTag rating={centre.rating} long />
 								<span className="inline-flex items-center gap-1.25 text-[13px] text-teal-700">
 									<Icon
 										name="shield-check"
@@ -493,7 +493,7 @@ export default async function CentrePage({
 												</span>
 												{qa.label}
 											</span>
-											<RatingBadge rating={qa.rating} />
+											<RatingTag rating={qa.rating} long />
 										</div>
 									))}
 								</div>

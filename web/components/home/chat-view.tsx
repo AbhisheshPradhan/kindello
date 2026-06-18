@@ -12,7 +12,7 @@ import {
 import { UserBubble } from "@/components/ds/user-bubble";
 import { FollowUps } from "@/components/ds/follow-ups";
 import { PlaceResultCard } from "@/components/ds/place-result-card";
-import { RatingBadge } from "@/components/ds/rating-badge";
+import { RatingTag } from "@/components/ds/rating-tag";
 import { Tag } from "@/components/ds/tag";
 import { MapPreview, type MapPoint } from "@/components/ds/map-preview";
 import { Icon } from "@/components/ds/icon";
@@ -289,7 +289,7 @@ function CentreSpec({
 	const hours = summariseHours(centre.operating_hours);
 	rows.push({
 		label: "Rating",
-		value: <RatingBadge rating={centre.overall_rating} />,
+		value: <RatingTag rating={centre.overall_rating} long />,
 	});
 	if (addr) rows.push({ label: "Address", value: addr });
 	if (centre.service_type)
