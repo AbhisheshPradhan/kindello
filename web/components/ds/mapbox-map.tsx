@@ -190,8 +190,8 @@ export default function MapboxMap({
 				style: STYLE_STANDARD,
 				attributionControl: false,
 				cooperativeGestures: false,
-				// Start at the anchor (or the first pin) at a neighbourhood zoom so we never
-				// flash the whole globe before fitToPoints runs once the map loads.
+				// Provisional center so we never flash the whole globe; the real view is
+				// fitted synchronously below, before first paint.
 				center: anchor
 					? [anchor.lng, anchor.lat]
 					: valid[0]
@@ -200,6 +200,14 @@ export default function MapboxMap({
 				zoom: 11,
 			});
 			mapRef.current = map;
+
+			// Fit to the points NOW (pre-load) so the map opens already framed — no
+			// post-load zoom jump. Mark the first fit done so the markers effect doesn't
+			// re-fit the same set.
+			if (valid.length) {
+				fitToPoints(map, mapboxgl, valid, anchor);
+				firstFitRef.current = true;
+			}
 
 			map.on("style.load", () => {
 				map.setConfigProperty(
