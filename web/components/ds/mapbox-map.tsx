@@ -229,7 +229,7 @@ export default function MapboxMap({
 			if (interactive) {
 				viewedRef.current = loadViewed();
 				const popup = new mapboxgl.Popup({
-					offset: 44, // clears the larger selected pin
+					offset: 32, // sits just above the selected pin's head (not overlapping, not floating)
 					closeButton: true,
 					closeOnClick: true,
 					maxWidth: "280px",
