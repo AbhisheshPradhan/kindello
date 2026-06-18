@@ -512,19 +512,23 @@ export function ChatView({
 	const showThinking = busy && !lastAssistantText;
 
 	return (
-		<div className="w-full">
+		<div className="w-full flex flex-col flex-1">
 			{/* Tabs bar */}
-			<div className="max-w-190 mx-auto px-4 sm:px-6 w-full pt-2.5">
+			<div className="sticky top-13.75 z-20 bg-background max-w-190 mx-auto px-4 sm:px-6 w-full pt-2.5">
 				<ConversationTabs
 					active={tab}
 					placesCount={lastCentres.length || null}
 					onSelect={onSelectTab}
 					onNewSearch={onNewSearch}
 				/>
+			</div>
 
+			<div
+				className={`mx-auto px-4 sm:px-6 w-full pt-2.5 flex flex-col flex-1 ${tab === "places" ? "" : "max-w-190"}`}
+			>
 				{tab === "answer" || lastCentres.length === 0 ? (
-					<div className="w-full">
-						<div className="flex flex-col max-w-190 mx-auto w-full pt-6 pb-6">
+					<>
+						<div className="flex flex-col flex-1 max-w-190 mx-auto w-full pt-6 pb-6">
 							<div className="flex flex-col gap-7">
 								{messages.map((m, i) => {
 									const isLast = i === messages.length - 1;
@@ -622,10 +626,10 @@ export function ChatView({
 								/>
 							</div>
 						</div>
-					</div>
+					</>
 				) : (
 					<div className="flex-1 min-h-0 overflow-y-auto">
-						<div className="w-full px-4 sm:px-6 py-6">
+						<div className="w-full">
 							<p className="text-sm text-muted-foreground mb-5">
 								Place results
 								{lastQuery && (

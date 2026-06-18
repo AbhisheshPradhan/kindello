@@ -128,7 +128,7 @@ export function ChatSession({
 	return (
 		<div className="flex flex-col min-h-dvh bg-background">
 			<SiteHeader onLogoClick={newSearch} />
-			<main className="flex-1">
+			<main className="flex-1 flex flex-col">
 				<ChatView
 					messages={messages}
 					busy={busy}
