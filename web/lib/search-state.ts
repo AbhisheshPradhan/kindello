@@ -65,9 +65,10 @@ export const DEFAULT_LOCATION: ResolvedLocation = {
 
 export const DEFAULT_RADIUS_KM = 5;
 // The canvas is the "directory" surface, so it shows the full filtered set (capped),
-// not the curated 3-5 the AI narrates in the rail.
-export const DEFAULT_CANVAS_LIMIT = 24;
-export const MAX_CANVAS_LIMIT = 60;
+// not the curated 3-5 the AI narrates in the rail. 50 keeps it simple for now; bump +
+// add clustering (supercluster) before going higher so dense areas stay legible.
+export const DEFAULT_CANVAS_LIMIT = 50;
+export const MAX_CANVAS_LIMIT = 80;
 export const MIN_RADIUS_KM = 1;
 export const MAX_RADIUS_KM = 30;
 
