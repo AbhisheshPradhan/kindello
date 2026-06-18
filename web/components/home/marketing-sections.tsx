@@ -262,7 +262,7 @@ export function MarketingSections({
 
 			{/* FAQ */}
 			<section
-				className="max-w-215 mx-auto px-6 w-full py-16"
+				className="max-w-215 mx-auto px-4 sm:px-6 w-full py-16"
 				id="about"
 			>
 				<h2 className="ds-section-h2 font-semibold tracking-[-0.02em] text-foreground mb-2">

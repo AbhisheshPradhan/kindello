@@ -22,7 +22,7 @@ export function SiteHeader({ onLogoClick }: { onLogoClick?: () => void }) {
 
 	return (
 		<header
-			className="flex items-center gap-4 px-6 py-3 sticky top-0 z-30 backdrop-blur-[10px] border-b"
+			className="flex items-center gap-4 px-4 sm:px-6 py-3 sticky top-0 z-30 backdrop-blur-[10px] border-b"
 			style={{
 				background: "color-mix(in srgb, var(--bg) 88%, transparent)",
 			}}
