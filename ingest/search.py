@@ -113,13 +113,21 @@ def _maps_link(name: str, address: str | None, suburb: str, state: str, postcode
     return f"https://www.google.com/maps/search/?api=1&query={quote_plus(q)}"
 
 
+MATCH_LABEL = ["no-match", "name-variant", "name-exact"]
+
+
 def search_centres(lat: float, lng: float, radius_km: float = 5,
                    care_type: str | None = None, min_rating: str | None = None,
+                   keyword: str | None = None, variants: list[str] | None = None,
                    limit: int = 10, conn=None) -> list[dict]:
     """Nearest centres within radius_km, filtered, sorted by distance.
 
     care_type: one of long_day_care | preschool | oshc | family_day_care
     min_rating: an NQS rating; only centres rated at least that good are returned.
+    keyword: a philosophy/program/name term (e.g. "montessori") RANKED first (not filtered),
+        matched against the service name. variants: lower-priority naming variants, also matched.
+        Sparse philosophies thus fall back to nearby centres instead of returning nothing;
+        each result carries a `match` field ("name-exact" / "name-variant" / "no-match").
     """
     own = conn or _connect()
     try:
@@ -138,20 +146,39 @@ def search_centres(lat: float, lng: float, radius_km: float = 5,
             where.append("overall_rating = ANY(%(ratings)s)")
             params["ratings"] = allowed
 
+        # Keyword scoring: exact name match (2) > variant match (1) > none (0). RANK, don't filter,
+        # so a sparse philosophy (e.g. the ~10 Reggio centres) still falls back to nearby centres.
+        score_expr = "0"
+        if keyword:
+            params["kw"] = f"%{keyword}%"
+            patterns = [f"%{v}%" for v in (variants or []) if v]
+            if patterns:
+                params["variants"] = patterns
+                score_expr = ("CASE WHEN service_name ILIKE %(kw)s THEN 2 "
+                              "WHEN service_name ILIKE ANY(%(variants)s) THEN 1 ELSE 0 END")
+            else:
+                score_expr = "CASE WHEN service_name ILIKE %(kw)s THEN 2 ELSE 0 END"
+        order_by = ("match_score DESC, geog <-> ST_MakePoint(%(lng)s,%(lat)s)::geography"
+                    if keyword else "geog <-> ST_MakePoint(%(lng)s,%(lat)s)::geography")
+
         rows = own.execute(
             f"""
             SELECT service_name, service_address, suburb, state, postcode,
                    overall_rating, number_of_approved_places, phone,
                    latitude::float8 AS lat, longitude::float8 AS lng,
+                   {score_expr} AS match_score,
                    round((ST_Distance(geog, ST_MakePoint(%(lng)s,%(lat)s)::geography)/1000)::numeric, 2)::float8 AS distance_km
             FROM services
             WHERE {' AND '.join(where)}
-            ORDER BY geog <-> ST_MakePoint(%(lng)s,%(lat)s)::geography
+            ORDER BY {order_by}
             LIMIT %(lim)s
             """, params,
         ).fetchall()
 
         for r in rows:
+            if keyword:
+                r["match"] = MATCH_LABEL[r["match_score"]]
+            r.pop("match_score", None)
             r["maps_link"] = _maps_link(r["service_name"], r["service_address"],
                                         r["suburb"], r["state"], r["postcode"])
         return rows
@@ -165,6 +192,8 @@ def _cli() -> None:
     ap.add_argument("location", nargs="+", help='a suburb/postcode ("Bondi", "2026") OR two numbers: lat lng')
     ap.add_argument("--care", choices=list(CARE_PREDICATES), help="care type filter")
     ap.add_argument("--min-rating", choices=RATING_ORDER, help="minimum NQS rating")
+    ap.add_argument("--keyword", help="philosophy/program term to rank first (e.g. montessori)")
+    ap.add_argument("--variant", action="append", default=[], help="naming variant of --keyword (repeatable)")
     ap.add_argument("--radius", type=float, default=5, help="radius in km (default 5)")
     ap.add_argument("--limit", type=int, default=10)
     ap.add_argument("--json", action="store_true", help="emit JSON")
@@ -181,18 +210,21 @@ def _cli() -> None:
                          f"(no geocoded centres there to anchor on).")
             lat, lng, label = loc["lat"], loc["lng"], f'{loc["label"]} ({loc["n"]} centres)'
 
-        results = search_centres(lat, lng, args.radius, args.care, args.min_rating, args.limit, conn=conn)
+        results = search_centres(lat, lng, args.radius, args.care, args.min_rating,
+                                  args.keyword, args.variant, args.limit, conn=conn)
 
         if args.json:
             print(json.dumps(results, indent=2))
             return
-        filt = " | ".join(x for x in [args.care, (f"≥{args.min_rating}" if args.min_rating else None)] if x)
+        filt = " | ".join(x for x in [args.care, (f"≥{args.min_rating}" if args.min_rating else None),
+                                      (f'kw:{args.keyword}' if args.keyword else None)] if x)
         print(f"\nNear {label} — within {args.radius:g}km{(' — ' + filt) if filt else ''}\n")
         if not results:
             print("  (no matches — try a wider radius or fewer filters)")
             return
         for i, r in enumerate(results, 1):
-            print(f"{i:2}. {r['distance_km']:>5}km  {r['service_name']}")
+            tag = f"  [{r['match']}]" if r.get("match") else ""
+            print(f"{i:2}. {r['distance_km']:>5}km  {r['service_name']}{tag}")
             print(f"      {r['suburb']} {r['postcode']} · {r['overall_rating'] or 'not rated'} · {r['number_of_approved_places'] or '?'} places")
 
 

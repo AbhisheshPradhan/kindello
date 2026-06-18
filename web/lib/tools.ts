@@ -75,6 +75,8 @@ export const resolveLocation = tool({
   },
 });
 
+const MATCH_LABEL = ["no-match", "name-variant", "name-exact"] as const;
+
 export const searchCentres = tool({
   description: "Find childcare centres near a coordinate, nearest first, with optional filters.",
   inputSchema: z.object({
@@ -83,9 +85,35 @@ export const searchCentres = tool({
     radius_km: z.number().optional().describe("Search radius in km (default 5)."),
     care_type: z.enum(["long_day_care", "preschool", "oshc", "family_day_care"]).optional(),
     min_rating: z.enum(RATING_ORDER).optional().describe("Only centres rated at least this good."),
+    keyword: z
+      .string()
+      .optional()
+      .describe(
+        'A teaching philosophy / program / name term to prioritise, matched against the centre ' +
+          'name — e.g. "Montessori", "Reggio", "Steiner", "bush kinder". Results are RANKED ' +
+          '(exact name matches first), NOT filtered — so a sparse philosophy still falls back to ' +
+          "nearby centres rather than returning nothing. Check each result's `match` field.",
+      ),
+    variants: z
+      .array(z.string())
+      .optional()
+      .describe(
+        'Lower-priority naming variants of `keyword`, also matched against the name — e.g. for ' +
+          '"preschool": ["kindergarten","kinder"]. Naming/spelling variants only; do NOT pass ' +
+          'conceptual synonyms (e.g. "child-led" for Montessori) — those never appear in names.',
+      ),
     limit: z.number().optional().describe("Max results (default 10)."),
   }),
-  execute: async ({ latitude, longitude, radius_km = 5, care_type, min_rating, limit = 10 }) => {
+  execute: async ({
+    latitude,
+    longitude,
+    radius_km = 5,
+    care_type,
+    min_rating,
+    keyword,
+    variants = [],
+    limit = 10,
+  }) => {
     const where = ["geog IS NOT NULL", "ST_DWithin(geog, ST_MakePoint($1,$2)::geography, $3)"];
     const params: unknown[] = [longitude, latitude, radius_km * 1000];
     if (care_type) where.push(CARE_PREDICATES[care_type]);
@@ -94,23 +122,49 @@ export const searchCentres = tool({
       params.push(allowed);
       where.push(`overall_rating = ANY($${params.length})`);
     }
+
+    // Keyword scoring: exact name match (2) > variant match (1) > none (0). We RANK by this,
+    // not filter — so a sparse philosophy (e.g. the ~10 Reggio centres nationally) still falls
+    // back to nearby alternatives instead of an empty screen. The system prompt tells the model
+    // to frame that fallback honestly and never claim an unmatched centre's philosophy.
+    let scoreExpr = "0";
+    if (keyword) {
+      params.push(`%${keyword}%`);
+      const kwIdx = params.length;
+      const variantPatterns = variants.filter(Boolean).map((v) => `%${v}%`);
+      if (variantPatterns.length) {
+        params.push(variantPatterns);
+        scoreExpr = `CASE WHEN service_name ILIKE $${kwIdx} THEN 2 WHEN service_name ILIKE ANY($${params.length}) THEN 1 ELSE 0 END`;
+      } else {
+        scoreExpr = `CASE WHEN service_name ILIKE $${kwIdx} THEN 2 ELSE 0 END`;
+      }
+    }
+
     params.push(limit);
     const limIdx = params.length;
+    const orderBy = keyword
+      ? `match_score DESC, geog <-> ST_MakePoint($1,$2)::geography`
+      : `geog <-> ST_MakePoint($1,$2)::geography`;
     const { rows } = await pool.query(
       `SELECT service_name, service_address, suburb, state, postcode, overall_rating,
               nullif(phone, '') AS phone, operating_hours,
               number_of_approved_places AS places,
+              ${scoreExpr} AS match_score,
               round((ST_Distance(geog, ST_MakePoint($1,$2)::geography)/1000)::numeric, 2)::float8 AS distance_km
        FROM services
        WHERE ${where.join(" AND ")}
-       ORDER BY geog <-> ST_MakePoint($1,$2)::geography
+       ORDER BY ${orderBy}
        LIMIT $${limIdx}`,
       params,
     );
     if (!rows.length) return { error: "No centres matched — try a wider radius or fewer filters." };
-    return rows.map((r) => ({
-      ...r,
-      maps_link: mapsLink([r.service_name, r.service_address, r.suburb, r.state, r.postcode]),
-    }));
+    return rows.map((r) => {
+      const { match_score, ...rest } = r;
+      return {
+        ...rest,
+        ...(keyword ? { match: MATCH_LABEL[match_score] } : {}),
+        maps_link: mapsLink([r.service_name, r.service_address, r.suburb, r.state, r.postcode]),
+      };
+    });
   },
 });
