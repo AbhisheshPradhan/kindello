@@ -1,4 +1,5 @@
 import type { CSSProperties, HTMLAttributes } from "react";
+import { cn } from "@/lib/utils";
 
 const MAP: Record<
 	string,
@@ -25,10 +26,13 @@ const MAP: Record<
 /**
  * RatingBadge — National Quality Standard rating pill, colour-coded best→worst.
  * Pass the raw ACECQA rating string; null/unknown renders "Not yet rated".
+ * Layout is utility-driven; the rating-derived fill/ring stays inline because
+ * it's a runtime color-mix off the tier's base colour.
  */
 export function RatingBadge({
 	rating = null,
 	style,
+	className,
 	...props
 }: { rating?: string | null } & HTMLAttributes<HTMLSpanElement>) {
 	const m = rating ? MAP[rating] : undefined;
@@ -50,19 +54,11 @@ export function RatingBadge({
 	}
 	return (
 		<span
-			style={{
-				display: "inline-flex",
-				alignItems: "center",
-				padding: "4px 11px",
-				fontFamily: "var(--font-sans)",
-				fontSize: 12.5,
-				fontWeight: 600,
-				lineHeight: 1.3,
-				borderRadius: "var(--radius-pill)",
-				whiteSpace: "nowrap",
-				...css,
-				...style,
-			}}
+			className={cn(
+				"inline-flex items-center px-2.75 py-1 font-sans text-[12.5px] font-semibold leading-[1.3] rounded-full whitespace-nowrap",
+				className,
+			)}
+			style={{ ...css, ...style }}
 			{...props}
 		>
 			{m ? m.label : "Not yet rated"}

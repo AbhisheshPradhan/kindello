@@ -54,44 +54,16 @@ export default async function SearchPage({
 			: "Approved childcare centres";
 
 	return (
-		<div
-			style={{
-				minHeight: "100dvh",
-				display: "flex",
-				flexDirection: "column",
-				background: "var(--bg)",
-			}}
-		>
+		<div className="min-h-dvh flex flex-col bg-background">
 			<SiteHeader />
-			<main style={{ flex: 1 }}>
+			<main className="flex-1">
 				{/* Title band */}
-				<section
-					style={{
-						background: "var(--teal-tint)",
-						borderBottom: "1px solid var(--border)",
-					}}
-				>
-					<div
-						className="ds-container"
-						style={{ padding: "40px 24px 32px" }}
-					>
-						<h1
-							className="ds-page-h1"
-							style={{
-								fontWeight: 600,
-								letterSpacing: "-0.02em",
-								color: "var(--fg)",
-							}}
-						>
+				<section className="bg-teal-tint border-b">
+					<div className="ds-container pt-10 pb-8">
+						<h1 className="ds-page-h1 font-semibold tracking-[-0.02em] text-foreground">
 							{heading}
 						</h1>
-						<p
-							style={{
-								fontSize: 15,
-								color: "var(--text-body)",
-								marginTop: 8,
-							}}
-						>
+						<p className="text-[15px] text-body mt-2">
 							{total.toLocaleString()}{" "}
 							{total === 1 ? "centre" : "centres"} match
 							{locationLabel
@@ -99,7 +71,7 @@ export default async function SearchPage({
 								: " across Australia"}
 							. Quality ratings from ACECQA.
 						</p>
-						<div style={{ marginTop: 20 }}>
+						<div className="mt-5">
 							<Suspense fallback={null}>
 								<SearchFilters />
 							</Suspense>
@@ -107,25 +79,16 @@ export default async function SearchPage({
 					</div>
 				</section>
 
-				<div
-					className="ds-container"
-					style={{ padding: "36px 24px 64px" }}
-				>
+				<div className="ds-container pt-9 pb-16">
 					{centres.length === 0 ? (
-						<div
-							style={{
-								padding: "48px 0",
-								textAlign: "center",
-								color: "var(--muted-fg)",
-							}}
-						>
+						<div className="py-12 text-center text-muted-foreground">
 							No centres match those filters yet. Try a nearby
 							suburb or lower the minimum rating.
 						</div>
 					) : (
 						<>
 							{featured && (
-								<div style={{ marginBottom: 28 }}>
+								<div className="mb-7">
 									<CentreCard
 										featured
 										href={`/centre/${featured.id}`}

@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { cn } from "@/lib/utils";
 import { Icon, type IconName } from "./icon";
 
 /**
@@ -35,21 +36,12 @@ export function ConversationTabs({
 		return (
 			<button
 				onClick={() => onSelect(id)}
-				style={{
-					display: "inline-flex",
-					alignItems: "center",
-					gap: 8,
-					padding: "14px 2px",
-					marginBottom: -1,
-					fontFamily: "var(--font-sans)",
-					fontSize: 14.5,
-					fontWeight: on ? 600 : 500,
-					color: on ? "var(--fg)" : "var(--muted-fg)",
-					background: "none",
-					border: "none",
-					borderBottom: `2px solid ${on ? "var(--teal-500)" : "transparent"}`,
-					cursor: "pointer",
-				}}
+				className={cn(
+					"inline-flex items-center gap-2 py-3.5 px-0.5 -mb-px font-sans text-[14.5px] bg-none border-none border-b-2",
+					on
+						? "font-semibold text-foreground border-teal-500"
+						: "font-medium text-muted-foreground border-transparent",
+				)}
 			>
 				<Icon
 					name={icon}
@@ -58,15 +50,12 @@ export function ConversationTabs({
 				{label}
 				{count != null && (
 					<span
-						style={{
-							fontSize: 11,
-							padding: "1px 6px",
-							borderRadius: "var(--radius-pill)",
-							background: on
-								? "var(--teal-50)"
-								: "var(--secondary)",
-							color: on ? "var(--teal-700)" : "var(--muted-fg)",
-						}}
+						className={cn(
+							"text-[11px] px-1.5 py-px rounded-full",
+							on
+								? "bg-teal-50 text-teal-700"
+								: "bg-secondary text-muted-foreground",
+						)}
 					>
 						{count}
 					</span>
@@ -77,44 +66,20 @@ export function ConversationTabs({
 
 	return (
 		<div
-			style={{
-				display: "flex",
-				alignItems: "center",
-				gap: 30,
-				borderBottom: "1px solid var(--border)",
-				...(sticky
-					? {
-							position: "sticky",
-							top,
-							zIndex: 15,
-							background: "var(--bg)",
-							paddingTop: 18,
-						}
-					: {}),
-				...style,
-			}}
+			className={cn(
+				"flex items-center gap-7.5 border-b",
+				sticky && "sticky z-15 bg-background pt-4.5",
+			)}
+			style={{ ...(sticky ? { top } : {}), ...style }}
 		>
 			{tab("answer", "Answer", "sparkles", null)}
-			{tab("places", "Places", "map-pin", placesCount)}
+			{placesCount != null &&
+				placesCount > 0 &&
+				tab("places", "Places", "map-pin", placesCount)}
 			{onNewSearch && (
 				<button
 					onClick={onNewSearch}
-					style={{
-						marginLeft: "auto",
-						marginBottom: 7,
-						display: "inline-flex",
-						alignItems: "center",
-						gap: 6,
-						fontFamily: "var(--font-sans)",
-						fontSize: 13.5,
-						fontWeight: 600,
-						color: "var(--text-body)",
-						background: "var(--surface)",
-						border: "1px solid var(--border)",
-						borderRadius: "var(--radius-md)",
-						padding: "7px 13px",
-						cursor: "pointer",
-					}}
+					className="ml-auto mb-1.75 inline-flex items-center gap-1.5 font-sans text-[13.5px] font-semibold text-body bg-card border border-border rounded-md px-3.25 py-1.75"
 				>
 					<Icon
 						name="search"

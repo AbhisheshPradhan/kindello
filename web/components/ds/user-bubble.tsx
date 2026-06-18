@@ -1,28 +1,23 @@
 import type { CSSProperties, ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 /** UserBubble — a parent's message: right-aligned teal chat bubble. */
 export function UserBubble({
 	children,
+	className,
 	style,
 }: {
 	children: ReactNode;
+	className?: string;
 	style?: CSSProperties;
 }) {
 	return (
 		<div
-			style={{
-				width: "fit-content",
-				maxWidth: "78%",
-				marginLeft: "auto",
-				background: "var(--color-primary)",
-				color: "#fff",
-				padding: "11px 16px",
-				borderRadius: "18px 18px 4px 18px",
-				fontFamily: "var(--font-sans)",
-				fontSize: 14.5,
-				lineHeight: 1.45,
-				...style,
-			}}
+			className={cn(
+				"w-fit max-w-[78%] ml-auto bg-primary text-white px-4 py-2.75 rounded-[18px_18px_4px_18px] font-sans text-[14.5px] leading-[1.45]",
+				className,
+			)}
+			style={style}
 		>
 			{children}
 		</div>

@@ -91,6 +91,29 @@ export const resolveLocation = tool({
 	},
 });
 
+// A structured channel for the model to emit suggested next questions alongside its
+// answer. No `execute` on purpose: it isn't run server-side — the model's call just
+// carries the questions as `input`, which the client reads to render the FollowUps
+// list. Optional by design (see system prompt): the model only calls it when a
+// genuinely useful refinement exists, so we never show forced/irrelevant follow-ups.
+export const suggestFollowUps = tool({
+	description:
+		"Offer 2-3 suggested next questions the parent could tap, phrased in their voice (first " +
+		"person, e.g. \"Show only the top-rated ones\"). ONLY call this when a refinement genuinely " +
+		"helps; omit it entirely otherwise. Each question must refine ONLY along data we actually " +
+		"hold: NQS rating, number of approved places, care type (long day care / preschool / OSHC / " +
+		"family day care), search radius or a nearby suburb, or a teaching philosophy/program term. " +
+		"NEVER suggest fees, vacancies, availability, websites, emails or anything not in the " +
+		"register, and never re-ask something already answered this conversation.",
+	inputSchema: z.object({
+		questions: z
+			.array(z.string())
+			.min(1)
+			.max(3)
+			.describe("2-3 short tappable follow-up questions in the parent's voice."),
+	}),
+});
+
 const MATCH_LABEL = ["no-match", "name-variant", "name-exact"] as const;
 
 export const searchCentres = tool({

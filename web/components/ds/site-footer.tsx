@@ -41,106 +41,40 @@ const COLS: { heading: string; links: { label: string; href: string }[] }[] = [
 /** SiteFooter — light teal-tint footer with brand mark, link columns, ACECQA attribution. */
 export function SiteFooter() {
 	return (
-		<footer
-			style={{
-				background: "var(--teal-tint)",
-				borderTop: "1px solid var(--border)",
-			}}
-		>
-			<div
-				className="ds-container"
-				style={{ padding: "56px 24px 40px" }}
-			>
-				<div
-					style={{
-						display: "grid",
-						gap: 40,
-						gridTemplateColumns:
-							"minmax(220px, 1.4fr) repeat(2, minmax(120px, 1fr))",
-						alignItems: "start",
-					}}
-					className="ds-footer-grid"
-				>
-					<div style={{ maxWidth: 320 }}>
-						<span
-							style={{
-								display: "inline-flex",
-								alignItems: "center",
-								gap: 9,
-							}}
-						>
+		<footer className="bg-teal-tint border-t">
+			<div className="ds-container pt-14 pb-10">
+				<div className="grid gap-10 items-start grid-cols-1 min-[721px]:grid-cols-[minmax(220px,1.4fr)_repeat(2,minmax(120px,1fr))]">
+					<div className="max-w-80">
+						<span className="inline-flex items-center gap-2.25">
 							{/* eslint-disable-next-line @next/next/no-img-element */}
 							<img
 								src="/brand/kindello-mark-clean.png"
 								alt="Kindello"
-								style={{ height: 30, width: "auto" }}
+								className="h-7.5 w-auto"
 							/>
-							<span
-								style={{
-									fontSize: 21,
-									fontWeight: 600,
-									letterSpacing: "-0.02em",
-									color: "var(--color-primary)",
-								}}
-							>
+							<span className="text-[21px] font-semibold tracking-[-0.02em] text-primary">
 								Kindello
 							</span>
 						</span>
-						<p
-							style={{
-								marginTop: 14,
-								fontSize: 14,
-								lineHeight: 1.6,
-								color: "var(--text-body)",
-							}}
-						>
+						<p className="mt-3.5 text-sm leading-[1.6] text-body">
 							Every approved childcare and early-education service
 							in Australia, in plain English. Quality ratings
 							sourced from ACECQA and synced daily.
 						</p>
 					</div>
 
-					<div
-						style={{
-							display: "grid",
-							gridTemplateColumns: "repeat(2, 1fr)",
-							gap: 32,
-						}}
-						className="ds-footer-links"
-					>
+					<div className="grid grid-cols-2 gap-8">
 						{COLS.map((col) => (
 							<div key={col.heading}>
-								<h4
-									style={{
-										fontSize: 12,
-										fontWeight: 600,
-										letterSpacing: ".05em",
-										textTransform: "uppercase",
-										color: "var(--muted-fg)",
-										marginBottom: 12,
-									}}
-								>
+								<h4 className="text-xs font-semibold tracking-[.05em] uppercase text-muted-foreground mb-3">
 									{col.heading}
 								</h4>
-								<ul
-									style={{
-										listStyle: "none",
-										margin: 0,
-										padding: 0,
-										display: "flex",
-										flexDirection: "column",
-										gap: 9,
-									}}
-								>
+								<ul className="list-none m-0 p-0 flex flex-col gap-2.25">
 									{col.links.map((l) => (
 										<li key={l.label}>
 											<Link
 												href={l.href}
-												style={{
-													fontSize: 14,
-													color: "var(--text-body)",
-													textDecoration: "none",
-												}}
+												className="text-sm text-body no-underline"
 											>
 												{l.label}
 											</Link>
@@ -152,40 +86,21 @@ export function SiteFooter() {
 					</div>
 				</div>
 
-				<div
-					style={{
-						marginTop: 40,
-						paddingTop: 20,
-						borderTop: "1px solid var(--border)",
-						display: "flex",
-						flexWrap: "wrap",
-						gap: 12,
-						alignItems: "center",
-						justifyContent: "space-between",
-						fontSize: 13,
-						color: "var(--muted-fg)",
-					}}
-				>
+				<div className="mt-10 pt-5 border-t flex flex-wrap gap-3 items-center justify-between text-[13px] text-muted-foreground">
 					<span>
 						© {new Date().getFullYear()} Kindello. Quality ratings
 						sourced from ACECQA.
 					</span>
-					<span style={{ display: "inline-flex", gap: 18 }}>
+					<span className="inline-flex gap-4.5">
 						<Link
 							href="/#about"
-							style={{
-								color: "var(--muted-fg)",
-								textDecoration: "none",
-							}}
+							className="text-muted-foreground no-underline"
 						>
 							Privacy
 						</Link>
 						<Link
 							href="/#about"
-							style={{
-								color: "var(--muted-fg)",
-								textDecoration: "none",
-							}}
+							className="text-muted-foreground no-underline"
 						>
 							Terms
 						</Link>

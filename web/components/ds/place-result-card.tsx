@@ -12,6 +12,9 @@ const GRADS = [
 	"linear-gradient(135deg,#ff8166,#f9603f)",
 ];
 
+const MORE_INFO_CLASS =
+	"mt-auto border border-border rounded-md text-center p-2.25 font-sans text-[13.5px] font-semibold text-body bg-card no-underline";
+
 /**
  * PlaceResultCard — the larger result card used in the Places-tab grid beside
  * the map: photo + Verified badge, name, rating, accent "places now" line,
@@ -46,41 +49,15 @@ export function PlaceResultCard({
 }) {
 	return (
 		<div
-			style={{
-				display: "flex",
-				flexDirection: "column",
-				background: "var(--surface)",
-				border: "1px solid var(--border)",
-				borderRadius: "var(--radius-lg)",
-				overflow: "hidden",
-				boxShadow: "var(--shadow-xs)",
-				...style,
-			}}
+			className="flex flex-col bg-card border border-border rounded-lg overflow-hidden shadow-xs"
+			style={style}
 		>
 			<div
-				style={{
-					height: 120,
-					position: "relative",
-					background: GRADS[seed % GRADS.length],
-				}}
+				className="h-30 relative"
+				style={{ background: GRADS[seed % GRADS.length] }}
 			>
 				{verified && (
-					<span
-						style={{
-							position: "absolute",
-							top: 9,
-							left: 9,
-							display: "inline-flex",
-							alignItems: "center",
-							gap: 4,
-							padding: "3px 9px",
-							fontSize: 11,
-							fontWeight: 600,
-							color: "var(--teal-700)",
-							background: "rgba(255,255,255,.94)",
-							borderRadius: "var(--radius-pill)",
-						}}
-					>
+					<span className="absolute top-2.25 left-2.25 inline-flex items-center gap-1 px-2.25 py-0.75 text-[11px] font-semibold text-teal-700 bg-white/94 rounded-full">
 						<Icon
 							name="shield-check"
 							size={11}
@@ -89,72 +66,26 @@ export function PlaceResultCard({
 					</span>
 				)}
 			</div>
-			<div
-				style={{
-					padding: "13px 15px 15px",
-					display: "flex",
-					flexDirection: "column",
-					gap: 9,
-					flex: 1,
-				}}
-			>
-				<div
-					style={{
-						fontSize: 15.5,
-						fontWeight: 600,
-						color: "var(--fg)",
-						whiteSpace: "nowrap",
-						overflow: "hidden",
-						textOverflow: "ellipsis",
-					}}
-				>
+			<div className="px-3.75 pt-3.25 pb-3.75 flex flex-col gap-2.25 flex-1">
+				<div className="text-[15.5px] font-semibold text-foreground truncate">
 					{name}
 				</div>
-				<div
-					style={{
-						fontSize: 13.5,
-						color: "var(--text-body)",
-						display: "flex",
-						alignItems: "center",
-						gap: 6,
-					}}
-				>
-					<span style={{ color: "var(--sun-400)" }}>★</span>
-					<strong
-						style={{
-							color: "var(--fg)",
-							fontWeight: 600,
-							fontFamily: "var(--font-mono)",
-						}}
-					>
+				<div className="text-[13.5px] text-body flex items-center gap-1.5">
+					<span className="text-sun-400">★</span>
+					<strong className="text-foreground font-semibold font-mono">
 						{rating.toFixed(1)}
 					</strong>
-					<span style={{ color: "var(--muted-fg)" }}>
-						({reviews})
-					</span>
+					<span className="text-muted-foreground">({reviews})</span>
 					{placesNow && (
 						<>
-							<span style={{ color: "var(--border)" }}>·</span>
-							<span
-								style={{
-									color: "var(--teal-600)",
-									fontWeight: 600,
-								}}
-							>
+							<span className="text-border">·</span>
+							<span className="text-teal-600 font-semibold">
 								{placesNow}
 							</span>
 						</>
 					)}
 				</div>
-				<div
-					style={{
-						fontSize: 13,
-						color: "var(--muted-fg)",
-						display: "inline-flex",
-						alignItems: "center",
-						gap: 7,
-					}}
-				>
+				<div className="text-[13px] text-muted-foreground inline-flex items-center gap-1.75">
 					<Icon
 						name="map-pin"
 						size={14}
@@ -163,15 +94,7 @@ export function PlaceResultCard({
 					{distance ? ` · ${distance}` : ""}
 				</div>
 				{phone && (
-					<div
-						style={{
-							fontSize: 13,
-							color: "var(--muted-fg)",
-							display: "inline-flex",
-							alignItems: "center",
-							gap: 7,
-						}}
-					>
+					<div className="text-[13px] text-muted-foreground inline-flex items-center gap-1.75">
 						<Icon
 							name="phone"
 							size={14}
@@ -182,38 +105,14 @@ export function PlaceResultCard({
 				{href ? (
 					<a
 						href={href}
-						style={{
-							marginTop: "auto",
-							border: "1px solid var(--border)",
-							borderRadius: "var(--radius-md)",
-							textAlign: "center",
-							padding: 9,
-							fontFamily: "var(--font-sans)",
-							fontSize: 13.5,
-							fontWeight: 600,
-							color: "var(--text-body)",
-							background: "var(--surface)",
-							textDecoration: "none",
-						}}
+						className={MORE_INFO_CLASS}
 					>
 						More info
 					</a>
 				) : (
 					<button
 						onClick={onMore}
-						style={{
-							marginTop: "auto",
-							border: "1px solid var(--border)",
-							borderRadius: "var(--radius-md)",
-							textAlign: "center",
-							padding: 9,
-							fontFamily: "var(--font-sans)",
-							fontSize: 13.5,
-							fontWeight: 600,
-							color: "var(--text-body)",
-							background: "var(--surface)",
-							cursor: "pointer",
-						}}
+						className={MORE_INFO_CLASS}
 					>
 						More info
 					</button>

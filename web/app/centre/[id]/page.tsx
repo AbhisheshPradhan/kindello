@@ -8,6 +8,7 @@ import {
 	type CentreDetail,
 } from "@/lib/directory";
 import { summariseHours, ratingLabel } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { SiteHeader } from "@/components/ds/site-header";
 import { SiteFooter } from "@/components/ds/site-footer";
 import { CentreCard } from "@/components/ds/centre-card";
@@ -186,6 +187,10 @@ const GALLERY = [
 	"linear-gradient(135deg,#57c5c5,#2fb3b3 60%,#158888)",
 ];
 
+// Shared section/panel class strings — the detail page repeats these throughout.
+const SECTION_H2 = "text-[22px] font-semibold text-foreground";
+const PANEL = "border border-border rounded-xl p-4.5 bg-card shadow-xs";
+
 export default async function CentrePage({
 	params,
 }: {
@@ -224,47 +229,22 @@ export default async function CentrePage({
 	];
 
 	return (
-		<div
-			style={{
-				minHeight: "100dvh",
-				display: "flex",
-				flexDirection: "column",
-				background: "var(--bg)",
-			}}
-		>
+		<div className="min-h-dvh flex flex-col bg-background">
 			<SiteHeader />
-			<main style={{ flex: 1 }}>
-				<div
-					className="ds-container"
-					style={{ padding: "24px 24px 64px" }}
-				>
+			<main className="flex-1">
+				<div className="ds-container pt-6 pb-16">
 					{/* Breadcrumb */}
-					<nav
-						style={{
-							display: "flex",
-							flexWrap: "wrap",
-							gap: 8,
-							fontSize: 13.5,
-							color: "var(--muted-fg)",
-							marginBottom: 18,
-						}}
-					>
+					<nav className="flex flex-wrap gap-2 text-[13.5px] text-muted-foreground mb-4.5">
 						<Link
 							href="/"
-							style={{
-								color: "var(--muted-fg)",
-								textDecoration: "none",
-							}}
+							className="text-muted-foreground no-underline"
 						>
 							Home
 						</Link>
 						<span>›</span>
 						<Link
 							href="/search"
-							style={{
-								color: "var(--muted-fg)",
-								textDecoration: "none",
-							}}
+							className="text-muted-foreground no-underline"
 						>
 							Childcare
 						</Link>
@@ -273,51 +253,22 @@ export default async function CentrePage({
 								<span>›</span>
 								<Link
 									href={`/search?suburb=${encodeURIComponent(centre.suburb)}`}
-									style={{
-										color: "var(--muted-fg)",
-										textDecoration: "none",
-									}}
+									className="text-muted-foreground no-underline"
 								>
 									{centre.suburb}
 								</Link>
 							</>
 						)}
 						<span>›</span>
-						<span style={{ color: "var(--text-body)" }}>
-							{centre.name}
-						</span>
+						<span className="text-body">{centre.name}</span>
 					</nav>
 
 					{/* Header block */}
-					<div
-						style={{
-							display: "flex",
-							flexWrap: "wrap",
-							gap: 20,
-							alignItems: "flex-start",
-							justifyContent: "space-between",
-						}}
-					>
-						<div style={{ maxWidth: 640 }}>
-							<div
-								style={{
-									display: "flex",
-									flexWrap: "wrap",
-									alignItems: "center",
-									gap: 10,
-									marginBottom: 12,
-								}}
-							>
+					<div className="flex flex-wrap gap-5 items-start justify-between">
+						<div className="max-w-160">
+							<div className="flex flex-wrap items-center gap-2.5 mb-3">
 								<RatingBadge rating={centre.rating} />
-								<span
-									style={{
-										display: "inline-flex",
-										alignItems: "center",
-										gap: 5,
-										fontSize: 13,
-										color: "var(--teal-700)",
-									}}
-								>
+								<span className="inline-flex items-center gap-1.25 text-[13px] text-teal-700">
 									<Icon
 										name="shield-check"
 										size={14}
@@ -325,26 +276,10 @@ export default async function CentrePage({
 									ACECQA-verified · synced today
 								</span>
 							</div>
-							<h1
-								className="ds-page-h1"
-								style={{
-									fontWeight: 600,
-									letterSpacing: "-0.02em",
-									color: "var(--fg)",
-								}}
-							>
+							<h1 className="ds-page-h1 font-semibold tracking-[-0.02em] text-foreground">
 								{centre.name}
 							</h1>
-							<div
-								style={{
-									display: "flex",
-									alignItems: "center",
-									gap: 7,
-									marginTop: 10,
-									fontSize: 15,
-									color: "var(--muted-fg)",
-								}}
-							>
+							<div className="flex items-center gap-1.75 mt-2.5 text-[15px] text-muted-foreground">
 								<Icon
 									name="map-pin"
 									size={16}
@@ -355,21 +290,14 @@ export default async function CentrePage({
 										: place}
 								</span>
 							</div>
-							<div style={{ marginTop: 12 }}>
+							<div className="mt-3">
 								<StarRating
 									value={centre.stars}
 									count={centre.reviews}
 									size={17}
 								/>
 							</div>
-							<div
-								style={{
-									display: "flex",
-									flexWrap: "wrap",
-									gap: 6,
-									marginTop: 14,
-								}}
-							>
+							<div className="flex flex-wrap gap-1.5 mt-3.5">
 								{centre.tags.map((t) => (
 									<Tag
 										key={t}
@@ -387,70 +315,31 @@ export default async function CentrePage({
 					</div>
 
 					{/* Photo gallery */}
-					<div
-						style={{
-							display: "grid",
-							gridTemplateColumns: "2fr 1fr",
-							gap: 12,
-							marginTop: 28,
-							height: 340,
-						}}
-						className="ds-gallery"
-					>
+					<div className="grid grid-cols-[2fr_1fr] gap-3 mt-7 h-85">
 						<div
+							className="relative rounded-xl overflow-hidden"
 							style={{
-								position: "relative",
-								borderRadius: "var(--radius-xl)",
-								overflow: "hidden",
 								background:
 									GALLERY[centre.seed % GALLERY.length],
 							}}
 						>
-							<span
-								style={{
-									position: "absolute",
-									inset: 0,
-									display: "flex",
-									alignItems: "center",
-									justifyContent: "center",
-									color: "rgba(255,255,255,.5)",
-								}}
-							>
+							<span className="absolute inset-0 flex items-center justify-center text-white/50">
 								<Icon
 									name="baby"
 									size={72}
 									strokeWidth={1.5}
 								/>
 							</span>
-							<span
-								style={{
-									position: "absolute",
-									bottom: 12,
-									left: 12,
-									padding: "5px 11px",
-									fontSize: 12,
-									fontWeight: 600,
-									color: "var(--teal-700)",
-									background: "rgba(255,255,255,.92)",
-									borderRadius: "var(--radius-pill)",
-								}}
-							>
+							<span className="absolute bottom-3 left-3 px-2.75 py-1.25 text-xs font-semibold text-teal-700 bg-white/92 rounded-full">
 								Photos coming soon
 							</span>
 						</div>
-						<div
-							style={{
-								display: "grid",
-								gridTemplateRows: "1fr 1fr",
-								gap: 12,
-							}}
-						>
+						<div className="grid grid-rows-[1fr_1fr] gap-3">
 							{[1, 2].map((n) => (
 								<div
 									key={n}
+									className="rounded-xl overflow-hidden"
 									style={{
-										borderRadius: "var(--radius-xl)",
-										overflow: "hidden",
 										background:
 											GALLERY[
 												(centre.seed + n) %
@@ -463,50 +352,20 @@ export default async function CentrePage({
 					</div>
 
 					{/* Quick facts bar */}
-					<div
-						style={{
-							display: "grid",
-							gridTemplateColumns:
-								"repeat(auto-fit, minmax(150px, 1fr))",
-							gap: 1,
-							marginTop: 28,
-							background: "var(--border)",
-							border: "1px solid var(--border)",
-							borderRadius: "var(--radius-xl)",
-							overflow: "hidden",
-						}}
-					>
+					<div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-px mt-7 bg-border border rounded-xl overflow-hidden">
 						{facts.map((f) => (
 							<div
 								key={f.label}
-								style={{
-									background: "var(--surface)",
-									padding: "16px 18px",
-								}}
+								className="bg-card px-4.5 py-4"
 							>
-								<span
-									style={{
-										display: "inline-flex",
-										alignItems: "center",
-										gap: 6,
-										fontSize: 12,
-										color: "var(--muted-fg)",
-										marginBottom: 6,
-									}}
-								>
+								<span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
 									<Icon
 										name={f.icon}
 										size={14}
 									/>{" "}
 									{f.label}
 								</span>
-								<div
-									style={{
-										fontSize: 15,
-										fontWeight: 600,
-										color: "var(--fg)",
-									}}
-								>
+								<div className="text-[15px] font-semibold text-foreground">
 									{f.value}
 								</div>
 							</div>
@@ -514,39 +373,14 @@ export default async function CentrePage({
 					</div>
 
 					{/* Two-column: content + sticky aside */}
-					<div
-						className="ds-detail-layout"
-						style={{ marginTop: 40 }}
-					>
-						<div
-							style={{
-								display: "flex",
-								flexDirection: "column",
-								gap: 40,
-							}}
-						>
+					<div className="ds-detail-layout mt-10">
+						<div className="flex flex-col gap-10">
 							{/* About */}
 							<section>
-								<h2
-									style={{
-										fontSize: 22,
-										fontWeight: 600,
-										color: "var(--fg)",
-										marginBottom: 12,
-									}}
-								>
+								<h2 className={cn(SECTION_H2, "mb-3")}>
 									About {centre.name}
 								</h2>
-								<div
-									style={{
-										fontSize: 15.5,
-										lineHeight: 1.7,
-										color: "var(--text-body)",
-										display: "flex",
-										flexDirection: "column",
-										gap: 14,
-									}}
-								>
+								<div className="text-[15.5px] leading-[1.7] text-body flex flex-col gap-3.5">
 									<p>
 										{centre.name} is an approved{" "}
 										{centre.flags.familyDayCare
@@ -554,7 +388,7 @@ export default async function CentrePage({
 											: "early-education and care service"}
 										{place ? ` in ${place}` : ""}, listed on
 										the ACECQA national register and rated{" "}
-										<strong style={{ color: "var(--fg)" }}>
+										<strong className="text-foreground">
 											{ratingLabel(centre.rating)}
 										</strong>{" "}
 										against the National Quality Standard.{" "}
@@ -582,82 +416,28 @@ export default async function CentrePage({
 
 							{/* Programs / age groups */}
 							<section>
-								<h2
-									style={{
-										fontSize: 22,
-										fontWeight: 600,
-										color: "var(--fg)",
-										marginBottom: 16,
-									}}
-								>
+								<h2 className={cn(SECTION_H2, "mb-4")}>
 									Programs &amp; age groups
 								</h2>
-								<div
-									style={{
-										display: "grid",
-										gap: 14,
-										gridTemplateColumns:
-											"repeat(auto-fit, minmax(220px, 1fr))",
-									}}
-								>
+								<div className="grid gap-3.5 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
 									{progs.map((p) => (
 										<div
 											key={p.name}
-											style={{
-												border: "1px solid var(--border)",
-												borderRadius:
-													"var(--radius-xl)",
-												padding: 18,
-												background: "var(--surface)",
-												boxShadow: "var(--shadow-xs)",
-											}}
+											className={PANEL}
 										>
-											<span
-												style={{
-													display: "inline-flex",
-													alignItems: "center",
-													justifyContent: "center",
-													width: 42,
-													height: 42,
-													borderRadius:
-														"var(--radius-lg)",
-													background:
-														"var(--teal-50)",
-													color: "var(--teal-600)",
-													marginBottom: 12,
-												}}
-											>
+											<span className="inline-flex items-center justify-center w-10.5 h-10.5 rounded-lg bg-teal-50 text-teal-600 mb-3">
 												<Icon
 													name={p.icon}
 													size={22}
 												/>
 											</span>
-											<div
-												style={{
-													display: "flex",
-													alignItems: "center",
-													gap: 8,
-													marginBottom: 4,
-												}}
-											>
-												<h3
-													style={{
-														fontSize: 16,
-														fontWeight: 600,
-														color: "var(--fg)",
-													}}
-												>
+											<div className="flex items-center gap-2 mb-1">
+												<h3 className="text-base font-semibold text-foreground">
 													{p.name}
 												</h3>
 												<Tag tone="sun">{p.age}</Tag>
 											</div>
-											<p
-												style={{
-													fontSize: 14,
-													lineHeight: 1.6,
-													color: "var(--text-body)",
-												}}
-											>
+											<p className="text-sm leading-[1.6] text-body">
 												{p.blurb}
 											</p>
 										</div>
@@ -667,50 +447,16 @@ export default async function CentrePage({
 
 							{/* Features & facilities */}
 							<section>
-								<h2
-									style={{
-										fontSize: 22,
-										fontWeight: 600,
-										color: "var(--fg)",
-										marginBottom: 16,
-									}}
-								>
+								<h2 className={cn(SECTION_H2, "mb-4")}>
 									What to look for in this type of care
 								</h2>
-								<div
-									style={{
-										display: "grid",
-										gap: 12,
-										gridTemplateColumns:
-											"repeat(auto-fit, minmax(240px, 1fr))",
-									}}
-								>
+								<div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(240px,1fr))]">
 									{FEATURES.map((f) => (
 										<div
 											key={f.label}
-											style={{
-												display: "flex",
-												alignItems: "center",
-												gap: 10,
-												fontSize: 14.5,
-												color: "var(--text-body)",
-											}}
+											className="flex items-center gap-2.5 text-[14.5px] text-body"
 										>
-											<span
-												style={{
-													display: "inline-flex",
-													alignItems: "center",
-													justifyContent: "center",
-													width: 28,
-													height: 28,
-													borderRadius:
-														"var(--radius-pill)",
-													background:
-														"var(--teal-50)",
-													color: "var(--teal-600)",
-													flex: "none",
-												}}
-											>
+											<span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-teal-50 text-teal-600 flex-none">
 												<Icon
 													name="check"
 													size={16}
@@ -724,64 +470,25 @@ export default async function CentrePage({
 
 							{/* NQS quality areas */}
 							<section>
-								<h2
-									style={{
-										fontSize: 22,
-										fontWeight: 600,
-										color: "var(--fg)",
-										marginBottom: 6,
-									}}
-								>
+								<h2 className={cn(SECTION_H2, "mb-1.5")}>
 									Quality rating breakdown
 								</h2>
-								<p
-									style={{
-										fontSize: 14.5,
-										color: "var(--muted-fg)",
-										marginBottom: 16,
-									}}
-								>
+								<p className="text-[14.5px] text-muted-foreground mb-4">
 									How {centre.name} is rated across the seven
 									National Quality Standard areas, assessed by
 									ACECQA.
 								</p>
-								<div
-									style={{
-										border: "1px solid var(--border)",
-										borderRadius: "var(--radius-xl)",
-										overflow: "hidden",
-									}}
-								>
+								<div className="border border-border rounded-xl overflow-hidden">
 									{centre.qualityAreas.map((qa, i) => (
 										<div
 											key={qa.area}
-											style={{
-												display: "flex",
-												alignItems: "center",
-												justifyContent: "space-between",
-												gap: 12,
-												padding: "13px 16px",
-												borderTop:
-													i === 0
-														? "none"
-														: "1px solid var(--border)",
-												background: "var(--surface)",
-											}}
+											className={cn(
+												"flex items-center justify-between gap-3 px-4 py-3.25 bg-card",
+												i !== 0 && "border-t",
+											)}
 										>
-											<span
-												style={{
-													fontSize: 14.5,
-													color: "var(--text-body)",
-												}}
-											>
-												<span
-													style={{
-														color: "var(--muted-fg)",
-														fontFamily:
-															"var(--font-mono)",
-														marginRight: 8,
-													}}
-												>
+											<span className="text-[14.5px] text-body">
+												<span className="text-muted-foreground font-mono mr-2">
 													QA{qa.area}
 												</span>
 												{qa.label}
@@ -794,14 +501,7 @@ export default async function CentrePage({
 
 							{/* Location */}
 							<section>
-								<h2
-									style={{
-										fontSize: 22,
-										fontWeight: 600,
-										color: "var(--fg)",
-										marginBottom: 16,
-									}}
-								>
+								<h2 className={cn(SECTION_H2, "mb-4")}>
 									Location
 								</h2>
 								<MapPreview
@@ -820,22 +520,8 @@ export default async function CentrePage({
 									height={300}
 									showLabels
 								/>
-								<div
-									style={{
-										display: "flex",
-										flexWrap: "wrap",
-										gap: 12,
-										marginTop: 14,
-										alignItems: "center",
-										justifyContent: "space-between",
-									}}
-								>
-									<span
-										style={{
-											fontSize: 14.5,
-											color: "var(--text-body)",
-										}}
-									>
+								<div className="flex flex-wrap gap-3 mt-3.5 items-center justify-between">
+									<span className="text-[14.5px] text-body">
 										{centre.address
 											? `${centre.address}, ${place}`
 											: place}
@@ -844,15 +530,7 @@ export default async function CentrePage({
 										href={mapsLink}
 										target="_blank"
 										rel="noopener noreferrer"
-										style={{
-											display: "inline-flex",
-											alignItems: "center",
-											gap: 6,
-											fontSize: 14,
-											fontWeight: 600,
-											color: "var(--teal-600)",
-											textDecoration: "none",
-										}}
+										className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-600 no-underline"
 									>
 										Open in Google Maps{" "}
 										<Icon
@@ -865,22 +543,8 @@ export default async function CentrePage({
 
 							{/* Reviews */}
 							<section>
-								<div
-									style={{
-										display: "flex",
-										alignItems: "center",
-										gap: 12,
-										marginBottom: 6,
-										flexWrap: "wrap",
-									}}
-								>
-									<h2
-										style={{
-											fontSize: 22,
-											fontWeight: 600,
-											color: "var(--fg)",
-										}}
-									>
+								<div className="flex items-center gap-3 mb-1.5 flex-wrap">
+									<h2 className={SECTION_H2}>
 										Parent reviews
 									</h2>
 									<StarRating
@@ -889,67 +553,26 @@ export default async function CentrePage({
 										size={16}
 									/>
 								</div>
-								<p
-									style={{
-										fontSize: 13,
-										color: "var(--muted-fg)",
-										marginBottom: 16,
-									}}
-								>
+								<p className="text-[13px] text-muted-foreground mb-4">
 									Preview reviews. Verified Google reviews are
 									being added to Kindello.
 								</p>
-								<div
-									style={{
-										display: "grid",
-										gap: 14,
-										gridTemplateColumns:
-											"repeat(auto-fit, minmax(260px, 1fr))",
-									}}
-								>
+								<div className="grid gap-3.5 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
 									{revs.map((r, i) => (
 										<div
 											key={i}
-											style={{
-												border: "1px solid var(--border)",
-												borderRadius:
-													"var(--radius-xl)",
-												padding: 18,
-												background: "var(--surface)",
-												boxShadow: "var(--shadow-xs)",
-											}}
+											className={PANEL}
 										>
 											<StarRating
 												value={r.rating}
 												showValue={false}
 												size={14}
 											/>
-											<p
-												style={{
-													fontSize: 14.5,
-													lineHeight: 1.6,
-													color: "var(--text-body)",
-													margin: "10px 0 12px",
-												}}
-											>
+											<p className="text-[14.5px] leading-[1.6] text-body mt-2.5 mb-3">
 												“{r.body}”
 											</p>
-											<div
-												style={{
-													display: "flex",
-													alignItems: "center",
-													justifyContent:
-														"space-between",
-													fontSize: 13,
-													color: "var(--muted-fg)",
-												}}
-											>
-												<strong
-													style={{
-														color: "var(--fg)",
-														fontWeight: 600,
-													}}
-												>
+											<div className="flex items-center justify-between text-[13px] text-muted-foreground">
+												<strong className="text-foreground font-semibold">
 													{r.author}
 												</strong>
 												<span>{r.when}</span>
@@ -961,45 +584,22 @@ export default async function CentrePage({
 
 							{/* FAQ */}
 							<section>
-								<h2
-									style={{
-										fontSize: 22,
-										fontWeight: 600,
-										color: "var(--fg)",
-										marginBottom: 16,
-									}}
-								>
+								<h2 className={cn(SECTION_H2, "mb-4")}>
 									Frequently asked questions
 								</h2>
 								<div>
 									{qs.map((f, i) => (
 										<div
 											key={i}
-											style={{
-												borderTop:
-													i === 0
-														? "none"
-														: "1px solid var(--border)",
-												padding: "18px 0",
-											}}
+											className={cn(
+												"py-4.5",
+												i !== 0 && "border-t",
+											)}
 										>
-											<h3
-												style={{
-													fontSize: 16,
-													fontWeight: 600,
-													color: "var(--fg)",
-													marginBottom: 8,
-												}}
-											>
+											<h3 className="text-base font-semibold text-foreground mb-2">
 												{f.q}
 											</h3>
-											<p
-												style={{
-													fontSize: 14.5,
-													lineHeight: 1.65,
-													color: "var(--text-body)",
-												}}
-											>
+											<p className="text-[14.5px] leading-[1.65] text-body">
 												{f.a}
 											</p>
 										</div>
@@ -1009,39 +609,12 @@ export default async function CentrePage({
 						</div>
 
 						{/* Sticky enquiry aside */}
-						<aside
-							style={{
-								position: "sticky",
-								top: 80,
-								alignSelf: "start",
-							}}
-						>
-							<div
-								style={{
-									border: "1px solid var(--border)",
-									borderRadius: "var(--radius-2xl)",
-									padding: 22,
-									background: "var(--surface)",
-									boxShadow: "var(--shadow-md)",
-								}}
-							>
-								<h3
-									style={{
-										fontSize: 18,
-										fontWeight: 600,
-										color: "var(--fg)",
-									}}
-								>
+						<aside className="sticky top-20 self-start">
+							<div className="border border-border rounded-2xl p-5.5 bg-card shadow-md">
+								<h3 className="text-[18px] font-semibold text-foreground">
 									Enquire with {centre.name}
 								</h3>
-								<p
-									style={{
-										fontSize: 14,
-										lineHeight: 1.6,
-										color: "var(--text-body)",
-										margin: "8px 0 16px",
-									}}
-								>
+								<p className="text-sm leading-[1.6] text-body mt-2 mb-4">
 									Ask about availability, fees and tours. Send
 									an enquiry and the centre will be in touch.
 								</p>
@@ -1050,31 +623,16 @@ export default async function CentrePage({
 									mapsLink={mapsLink}
 								/>
 								{centre.phone && (
-									<div
-										style={{
-											marginTop: 16,
-											paddingTop: 16,
-											borderTop:
-												"1px solid var(--border)",
-											fontSize: 14,
-											color: "var(--text-body)",
-											display: "inline-flex",
-											alignItems: "center",
-											gap: 8,
-										}}
-									>
-										<Icon
-											name="phone"
-											size={15}
-											style={{ color: "var(--teal-600)" }}
-										/>
+									<div className="mt-4 pt-4 border-t text-sm text-body inline-flex items-center gap-2">
+										<span className="text-teal-600 inline-flex">
+											<Icon
+												name="phone"
+												size={15}
+											/>
+										</span>
 										<a
 											href={`tel:${centre.phone}`}
-											style={{
-												color: "var(--fg)",
-												textDecoration: "none",
-												fontFamily: "var(--font-mono)",
-											}}
+											className="text-foreground no-underline font-mono"
 										>
 											{centre.phone}
 										</a>
@@ -1086,16 +644,8 @@ export default async function CentrePage({
 
 					{/* Related centres */}
 					{nearby.length > 0 && (
-						<section style={{ marginTop: 56 }}>
-							<h2
-								className="ds-section-h2"
-								style={{
-									fontWeight: 600,
-									letterSpacing: "-0.02em",
-									color: "var(--fg)",
-									marginBottom: 22,
-								}}
-							>
+						<section className="mt-14">
+							<h2 className="ds-section-h2 font-semibold tracking-[-0.02em] text-foreground mb-5.5">
 								Other centres nearby
 							</h2>
 							<div className="ds-grid ds-grid-3">

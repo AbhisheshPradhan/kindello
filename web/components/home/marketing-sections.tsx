@@ -2,11 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import type { DirectoryCentre, CategoryCount } from "@/lib/directory";
 import { CentreCard } from "@/components/ds/centre-card";
 import { CategoryTile } from "@/components/ds/category-tile";
 import { GuideCard } from "@/components/ds/guide-card";
 import { Icon } from "@/components/ds/icon";
+
+const AREA_TONES: Record<"teal" | "coral" | "sun", string> = {
+	teal: "bg-teal-50 text-teal-600",
+	coral: "bg-coral-100 text-coral-500",
+	sun: "bg-sun-100 text-sun-500",
+};
 
 const AREAS: {
 	suburb: string;
@@ -71,34 +78,13 @@ function SectionHeader({
 	href?: string;
 }) {
 	return (
-		<div
-			style={{
-				display: "flex",
-				alignItems: "flex-end",
-				justifyContent: "space-between",
-				gap: 16,
-				marginBottom: 22,
-			}}
-		>
+		<div className="flex items-end justify-between gap-4 mb-5.5">
 			<div>
-				<h2
-					className="ds-section-h2"
-					style={{
-						fontWeight: 600,
-						letterSpacing: "-0.02em",
-						color: "var(--fg)",
-					}}
-				>
+				<h2 className="ds-section-h2 font-semibold tracking-[-0.02em] text-foreground">
 					{title}
 				</h2>
 				{sub && (
-					<p
-						style={{
-							fontSize: 15,
-							color: "var(--muted-fg)",
-							marginTop: 5,
-						}}
-					>
+					<p className="text-[15px] text-muted-foreground mt-1.25">
 						{sub}
 					</p>
 				)}
@@ -106,13 +92,7 @@ function SectionHeader({
 			{href && (
 				<Link
 					href={href}
-					style={{
-						fontSize: 14.5,
-						fontWeight: 600,
-						color: "var(--teal-600)",
-						textDecoration: "none",
-						whiteSpace: "nowrap",
-					}}
+					className="text-[14.5px] font-semibold text-teal-600 no-underline whitespace-nowrap"
 				>
 					See all →
 				</Link>
@@ -124,35 +104,18 @@ function SectionHeader({
 function FaqItem({ q, a }: { q: string; a: string }) {
 	const [open, setOpen] = useState(false);
 	return (
-		<div style={{ borderBottom: "1px solid var(--border)" }}>
+		<div className="border-b">
 			<button
 				onClick={() => setOpen((o) => !o)}
 				aria-expanded={open}
-				style={{
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "space-between",
-					gap: 16,
-					width: "100%",
-					padding: "20px 4px",
-					background: "none",
-					border: "none",
-					cursor: "pointer",
-					textAlign: "left",
-					fontFamily: "var(--font-sans)",
-					fontSize: 17,
-					fontWeight: 600,
-					color: "var(--fg)",
-				}}
+				className="flex items-center justify-between gap-4 w-full px-1 py-5 bg-none border-none text-left font-sans text-[17px] font-semibold text-foreground"
 			>
 				{q}
 				<span
-					style={{
-						color: "var(--muted-fg)",
-						flex: "none",
-						transform: open ? "rotate(180deg)" : "none",
-						transition: "transform .18s ease",
-					}}
+					className={cn(
+						"text-muted-foreground flex-none transition-transform duration-180",
+						open && "rotate-180",
+					)}
 				>
 					<Icon
 						name="chevron-down"
@@ -161,15 +124,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 				</span>
 			</button>
 			{open && (
-				<p
-					style={{
-						padding: "0 4px 20px",
-						fontSize: 15,
-						lineHeight: 1.6,
-						color: "var(--text-body)",
-						maxWidth: 720,
-					}}
-				>
+				<p className="px-1 pb-5 text-[15px] leading-[1.6] text-body max-w-180">
 					{a}
 				</p>
 			)}
@@ -187,10 +142,7 @@ export function MarketingSections({
 	return (
 		<>
 			{/* Popular near you */}
-			<section
-				className="ds-container"
-				style={{ padding: "64px 24px" }}
-			>
+			<section className="ds-container py-16">
 				<SectionHeader
 					title="Popular near you"
 					sub="Highly rated approved centres in your area."
@@ -221,22 +173,11 @@ export function MarketingSections({
 
 			{/* Browse by type */}
 			<section
-				style={{ background: "var(--teal-tint)", padding: "64px 0" }}
+				className="bg-teal-tint py-16"
 				id="browse"
 			>
-				<div
-					className="ds-container"
-					style={{ padding: "0 24px" }}
-				>
-					<h2
-						className="ds-section-h2"
-						style={{
-							fontWeight: 600,
-							letterSpacing: "-0.02em",
-							color: "var(--fg)",
-							marginBottom: 22,
-						}}
-					>
+				<div className="ds-container">
+					<h2 className="ds-section-h2 font-semibold tracking-[-0.02em] text-foreground mb-5.5">
 						Browse by type
 					</h2>
 					<div className="ds-grid ds-grid-5">
@@ -259,10 +200,7 @@ export function MarketingSections({
 			</section>
 
 			{/* Explore by area */}
-			<section
-				className="ds-container"
-				style={{ padding: "64px 24px" }}
-			>
+			<section className="ds-container py-16">
 				<SectionHeader
 					title="Explore by area"
 					sub="Jump straight to a city or region."
@@ -272,39 +210,13 @@ export function MarketingSections({
 						<Link
 							key={a.label}
 							href={`/search?suburb=${encodeURIComponent(a.suburb)}`}
-							style={{
-								display: "flex",
-								alignItems: "center",
-								gap: 14,
-								padding: "18px 20px",
-								background: "var(--surface)",
-								border: "1px solid var(--border)",
-								borderRadius: "var(--radius-xl)",
-								textDecoration: "none",
-								boxShadow: "var(--shadow-xs)",
-							}}
+							className="flex items-center gap-3.5 px-5 py-4.5 bg-card border border-border rounded-xl no-underline shadow-xs"
 						>
 							<span
-								style={{
-									display: "inline-flex",
-									alignItems: "center",
-									justifyContent: "center",
-									width: 44,
-									height: 44,
-									borderRadius: "var(--radius-lg)",
-									background:
-										a.tone === "teal"
-											? "var(--teal-50)"
-											: a.tone === "coral"
-												? "var(--coral-100)"
-												: "var(--sun-100)",
-									color:
-										a.tone === "teal"
-											? "var(--teal-600)"
-											: a.tone === "coral"
-												? "var(--coral-500)"
-												: "var(--sun-500)",
-								}}
+								className={cn(
+									"inline-flex items-center justify-center w-11 h-11 rounded-lg",
+									AREA_TONES[a.tone],
+								)}
 							>
 								<Icon
 									name="map-pin"
@@ -312,22 +224,10 @@ export function MarketingSections({
 								/>
 							</span>
 							<span>
-								<span
-									style={{
-										display: "block",
-										fontSize: 16,
-										fontWeight: 600,
-										color: "var(--fg)",
-									}}
-								>
+								<span className="block text-base font-semibold text-foreground">
 									{a.label}
 								</span>
-								<span
-									style={{
-										fontSize: 13,
-										color: "var(--muted-fg)",
-									}}
-								>
+								<span className="text-[13px] text-muted-foreground">
 									Browse centres →
 								</span>
 							</span>
@@ -338,22 +238,11 @@ export function MarketingSections({
 
 			{/* Guides */}
 			<section
-				style={{ background: "var(--sun-tint)", padding: "64px 0" }}
+				className="bg-sun-tint py-16"
 				id="guides"
 			>
-				<div
-					className="ds-container"
-					style={{ padding: "0 24px" }}
-				>
-					<h2
-						className="ds-section-h2"
-						style={{
-							fontWeight: 600,
-							letterSpacing: "-0.02em",
-							color: "var(--fg)",
-							marginBottom: 22,
-						}}
-					>
+				<div className="ds-container">
+					<h2 className="ds-section-h2 font-semibold tracking-[-0.02em] text-foreground mb-5.5">
 						Guides for parents
 					</h2>
 					<div className="ds-grid ds-grid-3">
@@ -373,22 +262,13 @@ export function MarketingSections({
 
 			{/* FAQ */}
 			<section
-				className="ds-container"
-				style={{ padding: "64px 24px", maxWidth: 860 }}
+				className="max-w-215 mx-auto px-6 w-full py-16"
 				id="about"
 			>
-				<h2
-					className="ds-section-h2"
-					style={{
-						fontWeight: 600,
-						letterSpacing: "-0.02em",
-						color: "var(--fg)",
-						marginBottom: 8,
-					}}
-				>
+				<h2 className="ds-section-h2 font-semibold tracking-[-0.02em] text-foreground mb-2">
 					Frequently asked questions
 				</h2>
-				<div style={{ marginTop: 16 }}>
+				<div className="mt-4">
 					{FAQS.map((f) => (
 						<FaqItem
 							key={f.q}

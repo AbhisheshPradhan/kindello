@@ -1,9 +1,26 @@
 "use client";
 
-import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 type Variant = "primary" | "accent" | "secondary" | "outline" | "ghost";
 type Size = "sm" | "md" | "lg";
+
+const SIZES: Record<Size, string> = {
+	sm: "h-[34px] px-3.5 text-sm gap-1.5",
+	md: "h-[42px] px-5 text-[15px] gap-2",
+	lg: "h-[50px] px-7 text-base gap-2",
+};
+
+const VARIANTS: Record<Variant, string> = {
+	primary:
+		"bg-primary text-white border border-transparent shadow-teal hover:bg-teal-600",
+	accent: "bg-coral-500 text-white border border-transparent shadow-coral hover:bg-coral-600",
+	secondary:
+		"bg-secondary text-foreground border border-transparent hover:opacity-85",
+	outline: "bg-card text-foreground border border-border hover:bg-secondary",
+	ghost: "bg-transparent text-foreground border border-transparent hover:bg-secondary",
+};
 
 /**
  * Kindello Button — the action primitive. `primary` is teal, `accent` is the
@@ -15,7 +32,7 @@ export function Button({
 	full = false,
 	iconLeft = null,
 	iconRight = null,
-	style,
+	className,
 	children,
 	...props
 }: {
@@ -25,85 +42,15 @@ export function Button({
 	iconLeft?: ReactNode;
 	iconRight?: ReactNode;
 } & ButtonHTMLAttributes<HTMLButtonElement>) {
-	const sizes: Record<Size, CSSProperties> = {
-		sm: { height: 34, padding: "0 14px", fontSize: 14, gap: 6 },
-		md: { height: 42, padding: "0 20px", fontSize: 15, gap: 8 },
-		lg: { height: 50, padding: "0 28px", fontSize: 16, gap: 8 },
-	};
-	const variants: Record<Variant, CSSProperties> = {
-		primary: {
-			background: "var(--color-primary)",
-			color: "#fff",
-			border: "1px solid transparent",
-		},
-		accent: {
-			background: "var(--brand-accent)",
-			color: "#fff",
-			border: "1px solid transparent",
-		},
-		secondary: {
-			background: "var(--secondary)",
-			color: "var(--fg)",
-			border: "1px solid transparent",
-		},
-		outline: {
-			background: "var(--surface)",
-			color: "var(--fg)",
-			border: "1px solid var(--border)",
-		},
-		ghost: {
-			background: "transparent",
-			color: "var(--fg)",
-			border: "1px solid transparent",
-		},
-	};
-	const s = sizes[size];
-	const v = variants[variant];
-
 	return (
 		<button
-			style={{
-				display: "inline-flex",
-				alignItems: "center",
-				justifyContent: "center",
-				gap: s.gap,
-				height: s.height,
-				padding: s.padding,
-				width: full ? "100%" : "auto",
-				fontFamily: "var(--font-sans)",
-				fontSize: s.fontSize,
-				fontWeight: 600,
-				lineHeight: 1,
-				borderRadius: "var(--radius-md)",
-				cursor: "pointer",
-				whiteSpace: "nowrap",
-				transition:
-					"background .15s ease, opacity .15s ease, box-shadow .15s ease",
-				boxShadow:
-					variant === "accent"
-						? "var(--shadow-coral)"
-						: variant === "primary"
-							? "var(--shadow-teal)"
-							: "none",
-				...v,
-				...style,
-			}}
-			onMouseEnter={(e) => {
-				if (variant === "primary")
-					e.currentTarget.style.background =
-						"var(--color-primary-hover)";
-				else if (variant === "accent")
-					e.currentTarget.style.background =
-						"var(--brand-accent-hover)";
-				else if (variant === "outline" || variant === "ghost")
-					e.currentTarget.style.background = "var(--secondary)";
-				else if (variant === "secondary")
-					e.currentTarget.style.opacity = "0.85";
-			}}
-			onMouseLeave={(e) => {
-				e.currentTarget.style.background = String(v.background);
-				e.currentTarget.style.opacity = "1";
-			}}
+			className={cn(
+				"inline-flex items-center justify-center font-sans font-semibold leading-none rounded-md whitespace-nowrap transition-[background,opacity,box-shadow] duration-150",
+				SIZES[size],
+				VARIANTS[variant],
+				full ? "w-full" : "w-auto",
+				className,
+			)}
 			{...props}
 		>
 			{iconLeft}

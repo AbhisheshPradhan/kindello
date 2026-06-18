@@ -1,6 +1,8 @@
 "use client";
 
 import type { UIMessage } from "ai";
+import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { ConversationTabs } from "@/components/ds/conversation-tabs";
 import {
 	ChatComposer,
@@ -60,6 +62,21 @@ function messageCentres(m: UIMessage): Centre[] {
 		.flat();
 }
 
+// Follow-up questions the model emitted via the suggestFollowUps tool. The tool has
+// no server execute, so its call carries the questions as `input` (state stays
+// input-available); we read them straight off that. Absent = no follow-ups shown.
+function messageFollowUps(m: UIMessage): string[] {
+	for (const p of m.parts) {
+		if (p.type === "tool-suggestFollowUps") {
+			const q = (p as { input?: { questions?: unknown } }).input
+				?.questions;
+			if (Array.isArray(q))
+				return q.filter((x): x is string => typeof x === "string");
+		}
+	}
+	return [];
+}
+
 function messageLocation(m: UIMessage): Loc | null {
 	for (const p of m.parts) {
 		if (
@@ -101,48 +118,276 @@ function mapPoints(centres: Centre[], loc: Loc | null): MapPoint[] {
 	return pts;
 }
 
+// NQS tier ordering, best → worst (null/unknown = 0). Used to rank a "top pick"
+// and summarise the result set. The NQS rating is the only real quality signal we
+// hold; everything here is derived from the returned rows (no fabricated fees/reviews).
+const NQS_RANK: Record<string, number> = {
+	Excellent: 5,
+	"Exceeding NQS": 4,
+	"Meeting NQS": 3,
+	"Working Towards NQS": 2,
+};
+function tierRank(r: string | null): number {
+	return r ? (NQS_RANK[r] ?? 0) : 0;
+}
+
+// Best option by quality tier, ties broken by distance. Returns a reason string
+// that only states facts we have (rating + whether it's also the closest).
+function topPick(
+	centres: Centre[],
+): { centre: Centre; reason: string; isClosest: boolean } | null {
+	if (!centres.length) return null;
+	const byQuality = [...centres].sort((a, b) => {
+		const t = tierRank(b.overall_rating) - tierRank(a.overall_rating);
+		if (t !== 0) return t;
+		return (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity);
+	});
+	const pick = byQuality[0];
+	const closest = centres.reduce((a, b) =>
+		(a.distance_km ?? Infinity) <= (b.distance_km ?? Infinity) ? a : b,
+	);
+	const isClosest = pick === closest;
+	const bits: string[] = [];
+	if (pick.overall_rating) bits.push(`rated ${pick.overall_rating}`);
+	if (isClosest && pick.distance_km != null)
+		bits.push(`closest at ${pick.distance_km} km`);
+	else if (pick.distance_km != null) bits.push(`${pick.distance_km} km away`);
+	return { centre: pick, reason: bits.join(" · "), isClosest };
+}
+
+// Cross-cutting facts about the result set — all derived, never invented.
+function keyNotes(centres: Centre[], pickName: string): string[] {
+	const notes: string[] = [];
+	const rated = centres.filter((c) => c.overall_rating);
+	if (rated.length) {
+		const meetingPlus = rated.filter(
+			(c) => tierRank(c.overall_rating) >= 3,
+		).length;
+		notes.push(
+			meetingPlus === rated.length
+				? `All ${rated.length} rated Meeting NQS or above`
+				: `${meetingPlus} of ${rated.length} rated Meeting NQS or above`,
+		);
+	}
+	const withDist = centres.filter((c) => c.distance_km != null);
+	if (withDist.length) {
+		const closest = withDist.reduce((a, b) =>
+			(a.distance_km as number) <= (b.distance_km as number) ? a : b,
+		);
+		// Skip if the top pick already is the closest (avoids repeating the name).
+		if (closest.service_name !== pickName)
+			notes.push(
+				`Closest is ${closest.service_name} (${closest.distance_km} km)`,
+			);
+	}
+	const places = centres
+		.map((c) => c.places)
+		.filter((p): p is number => p != null);
+	if (places.length) {
+		const min = Math.min(...places);
+		const max = Math.max(...places);
+		notes.push(
+			min === max
+				? `${min} approved places`
+				: `${min}–${max} approved places`,
+		);
+	}
+	return notes;
+}
+
+function AnswerSynthesis({ centres }: { centres: Centre[] }) {
+	const pick = topPick(centres);
+	const notes = keyNotes(centres, pick?.centre.service_name ?? "");
+	if (!pick && !notes.length) return null;
+	return (
+		<div className="flex flex-col gap-2.5">
+			{pick && (
+				<div
+					className="flex items-start gap-2.5 px-3.25 py-2.75 bg-teal-50 rounded-lg"
+					// color-mix border off the teal brand — kept inline.
+					style={{
+						border: "1px solid color-mix(in srgb, var(--teal-500) 22%, transparent)",
+					}}
+				>
+					<span className="text-teal-600 mt-0.5 flex-none inline-flex">
+						<Icon
+							name="sparkles"
+							size={15}
+						/>
+					</span>
+					<span className="text-[13.5px] leading-[1.45] text-body">
+						<strong className="text-foreground font-semibold">
+							Top pick: {pick.centre.service_name}
+						</strong>
+						{pick.reason && <> — {pick.reason}</>}
+					</span>
+				</div>
+			)}
+			{notes.length > 0 && (
+				<div className="flex flex-wrap gap-1.75">
+					{notes.map((n, i) => (
+						<span
+							key={i}
+							className="text-xs font-medium text-body bg-secondary rounded-full px-2.5 py-1"
+						>
+							{n}
+						</span>
+					))}
+				</div>
+			)}
+		</div>
+	);
+}
+
 function FloatingCard({ centre }: { centre: Centre }) {
 	return (
-		<div
-			style={{
-				background: "var(--surface)",
-				border: "1px solid var(--border)",
-				borderRadius: "var(--radius-lg)",
-				boxShadow: "var(--shadow-md)",
-				padding: "10px 12px",
-				width: 210,
-				display: "flex",
-				flexDirection: "column",
-				gap: 6,
-			}}
-		>
-			<div
-				style={{
-					fontSize: 13.5,
-					fontWeight: 600,
-					color: "var(--fg)",
-					lineHeight: 1.3,
-				}}
-			>
+		<div className="bg-card border border-border rounded-lg shadow-md px-3 py-2.5 w-52.5 flex flex-col gap-1.5">
+			<div className="text-[13.5px] font-semibold text-foreground leading-[1.3]">
 				{centre.service_name}
 			</div>
-			<div
-				style={{
-					display: "flex",
-					alignItems: "center",
-					gap: 8,
-					flexWrap: "wrap",
-				}}
-			>
+			<div className="flex items-center gap-2 flex-wrap">
 				<RatingBadge
 					rating={centre.overall_rating}
-					style={{ fontSize: 11, padding: "3px 8px" }}
+					className="text-[11px] px-2 py-0.75"
 				/>
 				{centre.distance_km != null && (
-					<span style={{ fontSize: 12, color: "var(--muted-fg)" }}>
+					<span className="text-xs text-muted-foreground">
 						{centre.distance_km} km
 					</span>
 				)}
+			</div>
+		</div>
+	);
+}
+
+// Title-case a SHOUTY suburb ("SURRY HILLS" -> "Surry Hills") for display.
+function titleCase(v: string | null): string {
+	if (!v) return "";
+	return v.toLowerCase().replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
+// Full single-line address from the ACECQA spine parts (street, suburb, state, postcode).
+function fullAddress(c: Centre): string | null {
+	const tail = [titleCase(c.suburb), c.state, c.postcode]
+		.filter(Boolean)
+		.join(" ");
+	return [c.service_address, tail].filter(Boolean).join(", ") || null;
+}
+
+// CentreSpec — a scannable, labelled detail table for a top-ranked centre.
+// Every row is real ACECQA spine data; we deliberately don't show fees / star
+// reviews / live vacancies (unbuilt Tier-2 enrichment), so the table never lies.
+function CentreSpec({ centre, rank }: { centre: Centre; rank: number }) {
+	const rows: { label: string; value: ReactNode }[] = [];
+	const addr = fullAddress(centre);
+	const hours = summariseHours(centre.operating_hours);
+	if (addr) rows.push({ label: "Address", value: addr });
+	if (hours) rows.push({ label: "Hours", value: hours });
+	if (centre.distance_km != null)
+		rows.push({ label: "Distance", value: `${centre.distance_km} km away` });
+	if (centre.places != null)
+		rows.push({ label: "Places", value: `${centre.places} approved places` });
+	if (centre.phone)
+		rows.push({
+			label: "Phone",
+			value: (
+				<a
+					href={`tel:${centre.phone}`}
+					className="text-teal-700 font-medium no-underline"
+				>
+					{centre.phone}
+				</a>
+			),
+		});
+
+	return (
+		<div className="rounded-lg border overflow-hidden bg-card">
+			<div className="flex items-center gap-3 px-3.5 py-3 border-b">
+				<span className="flex-none w-6 h-6 rounded-full bg-teal-50 text-teal-700 text-[12.5px] font-semibold inline-flex items-center justify-center font-mono">
+					{rank}
+				</span>
+				<a
+					href={centre.id ? `/centre/${centre.id}` : centre.maps_link}
+					className="flex-1 min-w-0 text-[14.5px] font-semibold text-foreground no-underline"
+				>
+					{centre.service_name}
+				</a>
+				<RatingBadge rating={centre.overall_rating} />
+			</div>
+			<div className="flex flex-col">
+				{rows.map((r, i) => (
+					<div
+						key={i}
+						className={cn(
+							"flex gap-3 px-3.5 py-2.5 text-[13px]",
+							i !== 0 && "border-t",
+						)}
+					>
+						<span className="flex-none w-20 text-muted-foreground font-medium">
+							{r.label}
+						</span>
+						<span className="flex-1 min-w-0 text-body">
+							{r.value}
+						</span>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
+// CompactRow — the slim one-line result used for the tail beyond the top 3.
+function CompactRow({
+	centre,
+	rank,
+	first,
+}: {
+	centre: Centre;
+	rank: number;
+	first: boolean;
+}) {
+	const hours = summariseHours(centre.operating_hours);
+	return (
+		<div className={cn("flex items-center bg-card", !first && "border-t")}>
+			<a
+				href={centre.id ? `/centre/${centre.id}` : centre.maps_link}
+				className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 no-underline"
+			>
+				<span className="flex-none w-6 h-6 rounded-full bg-teal-50 text-teal-700 text-[12.5px] font-semibold inline-flex items-center justify-center font-mono">
+					{rank}
+				</span>
+				<span className="flex-1 min-w-0">
+					<span className="block text-[14.5px] font-semibold text-foreground">
+						{centre.service_name}
+					</span>
+					<span className="block text-[12.5px] text-muted-foreground">
+						{[
+							centre.suburb,
+							centre.distance_km != null
+								? `${centre.distance_km} km`
+								: null,
+							hours,
+						]
+							.filter(Boolean)
+							.join(" · ")}
+					</span>
+				</span>
+			</a>
+			<div className="flex-none flex items-center gap-2.5 pr-3.5">
+				{centre.phone && (
+					<a
+						href={`tel:${centre.phone}`}
+						title={`Call ${centre.service_name}`}
+						className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-teal-700 no-underline whitespace-nowrap"
+					>
+						<Icon
+							name="phone"
+							size={13}
+						/>
+						<span className="hidden sm:inline">{centre.phone}</span>
+					</a>
+				)}
+				<RatingBadge rating={centre.overall_rating} />
 			</div>
 		</div>
 	);
@@ -166,24 +411,15 @@ function AnswerTurn({
 	const floating = centres.slice(0, 2);
 
 	return (
-		<div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-			<div
-				style={{
-					display: "flex",
-					alignItems: "center",
-					gap: 8,
-					fontSize: 12.5,
-					color: "var(--muted-fg)",
-				}}
-			>
-				<Icon
-					name="sparkles"
-					size={14}
-					style={{ color: "var(--teal-500)" }}
-				/>
-				<span style={{ fontWeight: 600, color: "var(--text-body)" }}>
-					Answer
+		<div className="flex flex-col gap-3.5">
+			<div className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
+				<span className="text-teal-500 inline-flex">
+					<Icon
+						name="sparkles"
+						size={14}
+					/>
 				</span>
+				<span className="font-semibold text-body">Answer</span>
 				<span>·</span>
 				<span>ACECQA</span>
 				<span>·</span>
@@ -195,18 +431,7 @@ function AnswerTurn({
 					points={points}
 					height={220}
 				>
-					<div
-						style={{
-							position: "absolute",
-							top: 12,
-							right: 12,
-							display: "flex",
-							flexDirection: "column",
-							gap: 8,
-							zIndex: 3,
-							maxWidth: "60%",
-						}}
-					>
+					<div className="absolute top-3 right-3 flex flex-col gap-2 z-3 max-w-[60%]">
 						{floating.map((c, i) => (
 							<FloatingCard
 								key={i}
@@ -217,145 +442,62 @@ function AnswerTurn({
 				</MapPreview>
 			)}
 
+			{ready && centres.length > 0 && (
+				<AnswerSynthesis centres={centres} />
+			)}
+
+			{ready && centres.length > 0 && (
+				<div className="mt-1">
+					<h4 className="text-[15px] font-semibold text-foreground mt-0 mb-2 mx-0">
+						Best near {loc?.label ?? "you"}
+					</h4>
+					<div className="flex flex-col gap-3">
+						{centres.slice(0, 3).map((c, i) => (
+							<CentreSpec
+								key={i}
+								centre={c}
+								rank={i + 1}
+							/>
+						))}
+					</div>
+					{centres.length > 3 && (
+						<div className="flex flex-col rounded-lg overflow-hidden border mt-3">
+							{centres.slice(3).map((c, i) => (
+								<CompactRow
+									key={i}
+									centre={c}
+									rank={i + 4}
+									first={i === 0}
+								/>
+							))}
+						</div>
+					)}
+				</div>
+			)}
+
 			{text && <Markdown className="ds-answer-prose">{text}</Markdown>}
 
 			{ready && (
-				<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+				<div className="flex gap-2 flex-wrap">
 					<a
 						href="https://www.acecqa.gov.au/resources/national-registers"
 						target="_blank"
 						rel="noopener noreferrer"
-						style={{
-							display: "inline-flex",
-							alignItems: "center",
-							gap: 6,
-							padding: "5px 11px",
-							fontSize: 12.5,
-							fontWeight: 500,
-							color: "var(--text-body)",
-							background: "var(--secondary)",
-							borderRadius: "var(--radius-pill)",
-							textDecoration: "none",
-						}}
+						className="inline-flex items-center gap-1.5 px-2.75 py-1.25 text-[12.5px] font-medium text-body bg-secondary rounded-full no-underline"
 					>
-						<Icon
-							name="shield-check"
-							size={13}
-							style={{ color: "var(--teal-600)" }}
-						/>{" "}
+						<span className="text-teal-600 inline-flex">
+							<Icon
+								name="shield-check"
+								size={13}
+							/>
+						</span>{" "}
 						acecqa.gov.au
 					</a>
-				</div>
-			)}
-
-			{ready && centres.length > 0 && (
-				<div style={{ marginTop: 4 }}>
-					<h4
-						style={{
-							fontSize: 15,
-							fontWeight: 600,
-							color: "var(--fg)",
-							margin: "0 0 8px",
-						}}
-					>
-						Best near {loc?.label ?? "you"}
-					</h4>
-					<div
-						style={{
-							display: "flex",
-							flexDirection: "column",
-							borderRadius: "var(--radius-lg)",
-							overflow: "hidden",
-							border: "1px solid var(--border)",
-						}}
-					>
-						{centres.map((c, i) => {
-							const hours = summariseHours(c.operating_hours);
-							return (
-								<a
-									key={i}
-									href={
-										c.id ? `/centre/${c.id}` : c.maps_link
-									}
-									style={{
-										display: "flex",
-										alignItems: "center",
-										gap: 12,
-										padding: "12px 14px",
-										textDecoration: "none",
-										borderTop:
-											i === 0
-												? "none"
-												: "1px solid var(--border)",
-										background: "var(--surface)",
-									}}
-								>
-									<span
-										style={{
-											flex: "none",
-											width: 24,
-											height: 24,
-											borderRadius: "var(--radius-pill)",
-											background: "var(--teal-50)",
-											color: "var(--teal-700)",
-											fontSize: 12.5,
-											fontWeight: 600,
-											display: "inline-flex",
-											alignItems: "center",
-											justifyContent: "center",
-											fontFamily: "var(--font-mono)",
-										}}
-									>
-										{i + 1}
-									</span>
-									<span style={{ flex: 1, minWidth: 0 }}>
-										<span
-											style={{
-												display: "block",
-												fontSize: 14.5,
-												fontWeight: 600,
-												color: "var(--fg)",
-											}}
-										>
-											{c.service_name}
-										</span>
-										<span
-											style={{
-												display: "block",
-												fontSize: 12.5,
-												color: "var(--muted-fg)",
-											}}
-										>
-											{[
-												c.suburb,
-												c.distance_km != null
-													? `${c.distance_km} km`
-													: null,
-												hours,
-											]
-												.filter(Boolean)
-												.join(" · ")}
-										</span>
-									</span>
-									<RatingBadge
-										rating={c.overall_rating}
-										style={{ flex: "none" }}
-									/>
-								</a>
-							);
-						})}
-					</div>
 				</div>
 			)}
 		</div>
 	);
 }
-
-const DEFAULT_FOLLOWUPS = [
-	"Which of these have the best NQS rating?",
-	"Show only centres with 50+ approved places",
-	"What about preschool options instead?",
-];
 
 export function ChatView({
 	messages,
@@ -388,15 +530,21 @@ export function ChatView({
 	let lastCentres: Centre[] = [];
 	let lastLoc: Loc | null = null;
 	let lastQuery = "";
+	let lastFollowUps: string[] = [];
 	for (const m of messages) {
 		if (m.role === "user") {
 			const t = messageText(m);
 			if (t) lastQuery = t;
+			// A new question supersedes the previous turn's suggestions until the
+			// assistant answers again (which may or may not emit fresh ones).
+			lastFollowUps = [];
 		} else {
 			const c = messageCentres(m);
 			if (c.length) lastCentres = c;
 			const l = messageLocation(m);
 			if (l) lastLoc = l;
+			const f = messageFollowUps(m);
+			if (f.length) lastFollowUps = f;
 		}
 	}
 
@@ -406,20 +554,9 @@ export function ChatView({
 	const showThinking = busy && !lastAssistantText;
 
 	return (
-		<div
-			style={{
-				flex: 1,
-				minHeight: 0,
-				display: "flex",
-				flexDirection: "column",
-				width: "100%",
-			}}
-		>
+		<div className="flex-1 min-h-0 flex flex-col w-full">
 			{/* Tabs bar */}
-			<div
-				className="ds-container"
-				style={{ maxWidth: 760, padding: "10px 24px 0" }}
-			>
+			<div className="max-w-190 mx-auto px-6 w-full pt-2.5">
 				<ConversationTabs
 					active={tab}
 					placesCount={lastCentres.length || null}
@@ -428,20 +565,11 @@ export function ChatView({
 				/>
 			</div>
 
-			{tab === "answer" ? (
+			{tab === "answer" || lastCentres.length === 0 ? (
 				<>
 					<ChatContainerRoot className="relative min-h-0 flex-1">
-						<ChatContainerContent
-							className="ds-container"
-							style={{ maxWidth: 760, padding: "24px" }}
-						>
-							<div
-								style={{
-									display: "flex",
-									flexDirection: "column",
-									gap: 28,
-								}}
-							>
+						<ChatContainerContent className="max-w-190 mx-auto px-6 w-full py-6">
+							<div className="flex flex-col gap-7">
 								{messages.map((m, i) => {
 									const isLast = i === messages.length - 1;
 									if (m.role === "user")
@@ -462,10 +590,7 @@ export function ChatView({
 									return (
 										<div
 											key={m.id}
-											style={{
-												animation:
-													"ds-fade-up .25s ease both",
-											}}
+											className="animate-[ds-fade-up_.25s_ease_both]"
 										>
 											<AnswerTurn
 												text={text}
@@ -478,32 +603,13 @@ export function ChatView({
 								})}
 
 								{showThinking && (
-									<div
-										style={{
-											display: "inline-flex",
-											alignItems: "center",
-											gap: 8,
-											color: "var(--muted-fg)",
-											fontSize: 14,
-										}}
-									>
-										<span
-											style={{
-												display: "inline-flex",
-												gap: 3,
-											}}
-										>
+									<div className="inline-flex items-center gap-2 text-muted-foreground text-sm">
+										<span className="inline-flex gap-0.75">
 											{[0, 1, 2].map((i) => (
 												<span
 													key={i}
+													className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-[typing_1s_infinite]"
 													style={{
-														width: 6,
-														height: 6,
-														borderRadius: "50%",
-														background:
-															"var(--teal-500)",
-														animation:
-															"typing 1s infinite",
 														animationDelay: `${i * 0.15}s`,
 													}}
 												/>
@@ -515,15 +621,12 @@ export function ChatView({
 
 								{errorText && (
 									<div
+										className="text-sm leading-normal text-rating-improve rounded-lg px-3.5 py-3"
+										// Tinted error surface off the rating-improve red — kept inline.
 										style={{
-											fontSize: 14,
-											lineHeight: 1.5,
-											color: "var(--rating-improve)",
 											background:
 												"color-mix(in srgb, var(--rating-improve) 8%, transparent)",
 											border: "1px solid color-mix(in srgb, var(--rating-improve) 25%, transparent)",
-											borderRadius: "var(--radius-lg)",
-											padding: "12px 14px",
 										}}
 									>
 										{errorText}
@@ -531,36 +634,22 @@ export function ChatView({
 								)}
 							</div>
 
-							{!busy && lastCentres.length > 0 && (
+							{!busy && lastFollowUps.length > 0 && (
 								<FollowUps
-									items={DEFAULT_FOLLOWUPS}
+									items={lastFollowUps}
 									onSelect={onAsk}
 								/>
 							)}
 						</ChatContainerContent>
 
-						<div
-							style={{
-								position: "absolute",
-								bottom: 16,
-								left: "50%",
-								transform: "translateX(-50%)",
-							}}
-						>
+						<div className="absolute bottom-4 left-1/2 -translate-x-1/2">
 							<ScrollButton />
 						</div>
 					</ChatContainerRoot>
 
 					{/* Pinned composer */}
-					<div
-						style={{
-							background: "var(--bg)",
-						}}
-					>
-						<div
-							className="ds-container"
-							style={{ maxWidth: 760, padding: "12px 24px 16px" }}
-						>
+					<div className="bg-background">
+						<div className="max-w-190 mx-auto px-6 w-full pt-3 pb-4">
 							<ChatComposer
 								size="md"
 								placeholder="Ask a follow-up…"
@@ -577,59 +666,32 @@ export function ChatView({
 					</div>
 				</>
 			) : (
-				<div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-					<div
-						className="ds-container"
-						style={{ maxWidth: 1100, padding: "24px" }}
-					>
-						<h2
-							style={{
-								fontSize: 20,
-								fontWeight: 600,
-								color: "var(--fg)",
-								marginBottom: 4,
-							}}
-						>
+				<div className="flex-1 min-h-0 overflow-y-auto">
+					<div className="max-w-275 mx-auto px-6 w-full py-6">
+						<h2 className="text-xl font-semibold text-foreground mb-1">
 							Place results
 						</h2>
 						{lastQuery && (
-							<p
-								style={{
-									fontSize: 14,
-									color: "var(--muted-fg)",
-									marginBottom: 20,
-								}}
-							>
+							<p className="text-sm text-muted-foreground mb-5">
 								For:{" "}
-								<span style={{ color: "var(--text-body)" }}>
-									{lastQuery}
-								</span>
+								<span className="text-body">{lastQuery}</span>
 							</p>
 						)}
 						{lastCentres.length === 0 ? (
-							<p style={{ color: "var(--muted-fg)" }}>
+							<p className="text-muted-foreground">
 								No places to show yet. Ask a question on the
 								Answer tab first.
 							</p>
 						) : (
 							<div className="ds-places-layout">
-								<div
-									style={{
-										position: "sticky",
-										top: 0,
-										alignSelf: "start",
-									}}
-								>
+								<div className="sticky top-0 self-start">
 									<MapPreview
 										points={mapPoints(lastCentres, lastLoc)}
 										height={460}
 										showLabels
 									/>
 								</div>
-								<div
-									className="ds-grid ds-grid-2"
-									style={{ gap: 16 }}
-								>
+								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 									{lastCentres.map((c, i) => (
 										<PlaceResultCard
 											key={i}

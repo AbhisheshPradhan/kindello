@@ -30,136 +30,47 @@ export function ContinueSearchCard({
 	return (
 		<button
 			onClick={onResume}
-			style={{
-				display: "flex",
-				flexDirection: "column",
-				textAlign: "left",
-				padding: 0,
-				background: "var(--surface)",
-				border: "1px solid var(--border)",
-				borderRadius: "var(--radius-xl)",
-				overflow: "hidden",
-				boxShadow: "var(--shadow-sm)",
-				cursor: "pointer",
-				transition:
-					"box-shadow .18s ease, transform .18s ease, border-color .18s ease",
-				...style,
-			}}
-			onMouseEnter={(e) => {
-				e.currentTarget.style.boxShadow = "var(--shadow-md)";
-				e.currentTarget.style.borderColor = "var(--teal-200)";
-				e.currentTarget.style.transform = "translateY(-2px)";
-			}}
-			onMouseLeave={(e) => {
-				e.currentTarget.style.boxShadow = "var(--shadow-sm)";
-				e.currentTarget.style.borderColor = "var(--border)";
-				e.currentTarget.style.transform = "none";
-			}}
+			className="flex flex-col text-left p-0 bg-card border border-border rounded-xl overflow-hidden shadow-sm transition-[box-shadow,transform,border-color] duration-180 hover:shadow-md hover:border-teal-200 hover:-translate-y-0.5"
+			style={style}
 		>
 			<div
+				className="h-29 relative"
 				style={{
-					height: 116,
-					position: "relative",
 					background:
 						"color-mix(in srgb, var(--teal-500) 8%, var(--secondary))",
 				}}
 			>
-				<div
-					style={{
-						position: "absolute",
-						left: 0,
-						right: 0,
-						top: "54%",
-						height: 2,
-						background: "var(--surface)",
-					}}
-				/>
-				<div
-					style={{
-						position: "absolute",
-						top: 0,
-						bottom: 0,
-						left: "38%",
-						width: 2,
-						background: "var(--surface)",
-					}}
-				/>
+				<div className="absolute left-0 right-0 top-[54%] h-0.5 bg-card" />
+				<div className="absolute top-0 bottom-0 left-[38%] w-0.5 bg-card" />
 				{pins.map(([x, y], i) => (
 					<span
 						key={i}
+						className="absolute"
 						style={{
-							position: "absolute",
 							left: `${x}%`,
 							top: `${y}%`,
 							transform: "translate(-50%,-100%)",
 						}}
 					>
-						<span
-							style={{
-								display: "block",
-								width: 12,
-								height: 12,
-								borderRadius: "var(--radius-pill)",
-								background: "var(--teal-500)",
-								border: "2px solid #fff",
-								boxShadow: "0 1px 3px rgba(0,0,0,.3)",
-							}}
-						/>
+						<span className="block w-3 h-3 rounded-full bg-teal-500 border-2 border-white shadow-[0_1px_3px_rgba(0,0,0,.3)]" />
 					</span>
 				))}
 			</div>
-			<div
-				style={{
-					padding: "15px 16px 16px",
-					display: "flex",
-					flexDirection: "column",
-					gap: 10,
-					flex: 1,
-				}}
-			>
-				<span
-					style={{
-						display: "inline-flex",
-						alignItems: "center",
-						gap: 6,
-						fontSize: 12,
-						color: "var(--muted-fg)",
-					}}
-				>
+			<div className="px-4 pt-3.75 pb-4 flex flex-col gap-2.5 flex-1">
+				<span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
 					<Icon
 						name="clock"
 						size={13}
 					/>{" "}
 					{when}
 				</span>
-				<span
-					style={{
-						fontSize: 15.5,
-						fontWeight: 600,
-						color: "var(--fg)",
-						lineHeight: 1.4,
-					}}
-				>
+				<span className="text-[15.5px] font-semibold text-foreground leading-[1.4]">
 					{query}
 				</span>
-				<span style={{ fontSize: 13, color: "var(--muted-fg)" }}>
+				<span className="text-[13px] text-muted-foreground">
 					{summary}
 				</span>
-				<span
-					style={{
-						marginTop: "auto",
-						display: "inline-flex",
-						alignItems: "center",
-						justifyContent: "center",
-						gap: 7,
-						padding: 10,
-						borderRadius: "var(--radius-md)",
-						background: "var(--teal-50)",
-						color: "var(--teal-700)",
-						fontSize: 14,
-						fontWeight: 600,
-					}}
-				>
+				<span className="mt-auto inline-flex items-center justify-center gap-1.75 p-2.5 rounded-md bg-teal-50 text-teal-700 text-sm font-semibold">
 					Continue{" "}
 					<Icon
 						name="chevron-right"

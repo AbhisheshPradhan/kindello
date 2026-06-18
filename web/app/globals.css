@@ -95,6 +95,54 @@
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
 	--radius-xl: calc(var(--radius) + 4px);
+	--radius-2xl: calc(
+		var(--radius) + 12px
+	); /* feature panels; pill → rounded-full */
+
+	/* Kindello DS brand ramps → utilities (bg-teal-500, text-coral-500, …) */
+	--color-teal-50: var(--teal-50);
+	--color-teal-100: var(--teal-100);
+	--color-teal-200: var(--teal-200);
+	--color-teal-300: var(--teal-300);
+	--color-teal-400: var(--teal-400);
+	--color-teal-500: var(--teal-500);
+	--color-teal-600: var(--teal-600);
+	--color-teal-700: var(--teal-700);
+	--color-teal-800: var(--teal-800);
+	--color-teal-900: var(--teal-900);
+
+	--color-coral-100: var(--coral-100);
+	--color-coral-200: var(--coral-200);
+	--color-coral-300: var(--coral-300);
+	--color-coral-400: var(--coral-400);
+	--color-coral-500: var(--coral-500);
+	--color-coral-600: var(--coral-600);
+
+	--color-sun-100: var(--sun-100);
+	--color-sun-200: var(--sun-200);
+	--color-sun-300: var(--sun-300);
+	--color-sun-400: var(--sun-400);
+	--color-sun-500: var(--sun-500);
+
+	/* Dark-aware soft tint bands + comfortable body text */
+	--color-teal-tint: var(--teal-tint);
+	--color-coral-tint: var(--coral-tint);
+	--color-sun-tint: var(--sun-tint);
+	--color-body: var(--text-body);
+
+	/* NQS quality-rating semantics */
+	--color-rating-meeting: var(--rating-meeting);
+	--color-rating-working: var(--rating-working);
+	--color-rating-improve: var(--rating-improve);
+
+	/* Warm DS elevation → shadow-* utilities (dark-aware via --ds-shadow-*) */
+	--shadow-xs: var(--ds-shadow-xs);
+	--shadow-sm: var(--ds-shadow-sm);
+	--shadow-md: var(--ds-shadow-md);
+	--shadow-lg: var(--ds-shadow-lg);
+	--shadow-xl: var(--ds-shadow-xl);
+	--shadow-teal: var(--ds-shadow-teal);
+	--shadow-coral: var(--ds-shadow-coral);
 }
 
 @layer base {
@@ -211,22 +259,20 @@ select,
 	--brand-accent-hover: var(--coral-600);
 	--color-highlight: var(--sun-400);
 
-	/* Radius extensions (theme already defines --radius + sm/md/lg/xl) */
-	--radius-2xl: calc(var(--radius) + 12px); /* 24px feature panels */
-	--radius-pill: 9999px;
-
-	/* Soft, warm elevation */
-	--shadow-xs: 0 1px 2px rgba(31, 32, 28, 0.05);
-	--shadow-sm:
+	/* Soft, warm elevation. Named --ds-shadow-* so @theme can map them onto the
+	   shadow-* utilities without a self-referential name clash; redefined under
+	   .dark below so the utilities stay dark-mode aware. */
+	--ds-shadow-xs: 0 1px 2px rgba(31, 32, 28, 0.05);
+	--ds-shadow-sm:
 		0 1px 3px rgba(31, 32, 28, 0.06), 0 1px 2px rgba(31, 32, 28, 0.04);
-	--shadow-md:
+	--ds-shadow-md:
 		0 4px 12px rgba(31, 32, 28, 0.07), 0 2px 4px rgba(31, 32, 28, 0.04);
-	--shadow-lg:
+	--ds-shadow-lg:
 		0 12px 28px rgba(31, 32, 28, 0.1), 0 4px 10px rgba(31, 32, 28, 0.05);
-	--shadow-xl:
+	--ds-shadow-xl:
 		0 24px 48px rgba(31, 32, 28, 0.12), 0 8px 16px rgba(31, 32, 28, 0.06);
-	--shadow-teal: 0 8px 24px rgba(28, 166, 166, 0.18);
-	--shadow-coral: 0 8px 24px rgba(249, 96, 63, 0.2);
+	--ds-shadow-teal: 0 8px 24px rgba(28, 166, 166, 0.18);
+	--ds-shadow-coral: 0 8px 24px rgba(249, 96, 63, 0.2);
 }
 
 .dark {
@@ -237,12 +283,13 @@ select,
 	/* Body copy lifts off pure foreground for comfortable reading on dark. */
 	--text-body: oklch(0.88 0.005 95);
 	/* Warm, lighter shadows on a dark page. */
-	--shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
-	--shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
-	--shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
-	--shadow-lg:
+	--ds-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+	--ds-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+	--ds-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+	--ds-shadow-lg:
 		0 12px 28px rgba(0, 0, 0, 0.55), 0 4px 10px rgba(0, 0, 0, 0.35);
-	--shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.4);
+	--ds-shadow-xl:
+		0 24px 48px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.4);
 }
 
 /* Typewriter caret used by the hero composer placeholder. */
@@ -322,16 +369,6 @@ select,
 	}
 }
 
-/* Reveal the directory header nav + Sign in on wider screens. */
-@media (min-width: 820px) {
-	.ds-header-nav {
-		display: flex !important;
-	}
-	.ds-header-signin {
-		display: inline-flex !important;
-	}
-}
-
 /* Hero / page-title scale steps down on small screens. */
 .ds-hero-h1 {
 	font-size: clamp(34px, 7vw, 52px);
@@ -341,12 +378,6 @@ select,
 }
 .ds-page-h1 {
 	font-size: clamp(28px, 5vw, 38px);
-}
-
-@media (max-width: 720px) {
-	.ds-footer-grid {
-		grid-template-columns: 1fr !important;
-	}
 }
 
 /* Active-chat 2-column layout (conversation + sticky map rail) collapses to one. */

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { Icon } from "@/components/ds/icon";
 
 const TYPES = [
@@ -19,26 +19,9 @@ const RATINGS = [
 	{ value: "Excellent", label: "Excellent only" },
 ];
 
-const selectWrap: CSSProperties = {
-	position: "relative",
-	display: "inline-flex",
-	alignItems: "center",
-};
-const selectStyle: CSSProperties = {
-	appearance: "none",
-	WebkitAppearance: "none",
-	background: "var(--surface)",
-	border: "1px solid var(--border)",
-	borderRadius: "var(--radius-pill)",
-	padding: "9px 34px 9px 16px",
-	fontFamily: "var(--font-sans)",
-	fontSize: 14,
-	fontWeight: 500,
-	color: "var(--text-body)",
-	cursor: "pointer",
-	outline: "none",
-	boxShadow: "var(--shadow-xs)",
-};
+const SELECT_WRAP = "relative inline-flex items-center";
+const SELECT_CLASS =
+	"appearance-none bg-card border border-border rounded-full py-2.25 pr-8.5 pl-4 font-sans text-sm font-medium text-body cursor-pointer outline-none shadow-xs";
 
 /** Filter bar for the results grid — updates the URL query, server re-queries. */
 export function SearchFilters() {
@@ -59,26 +42,12 @@ export function SearchFilters() {
 	}
 
 	return (
-		<div
-			style={{
-				display: "flex",
-				flexWrap: "wrap",
-				gap: 10,
-				alignItems: "center",
-			}}
-		>
+		<div className="flex flex-wrap gap-2.5 items-center">
 			<form
 				onSubmit={submitSuburb}
-				style={{ ...selectWrap }}
+				className={SELECT_WRAP}
 			>
-				<span
-					style={{
-						position: "absolute",
-						left: 14,
-						color: "var(--muted-fg)",
-						pointerEvents: "none",
-					}}
-				>
+				<span className="absolute left-3.5 text-muted-foreground pointer-events-none">
 					<Icon
 						name="map-pin"
 						size={16}
@@ -88,27 +57,16 @@ export function SearchFilters() {
 					value={suburb}
 					onChange={(e) => setSuburb(e.target.value)}
 					placeholder="Suburb or town"
-					style={{
-						background: "var(--surface)",
-						border: "1px solid var(--border)",
-						borderRadius: "var(--radius-pill)",
-						padding: "9px 16px 9px 38px",
-						fontFamily: "var(--font-sans)",
-						fontSize: 14,
-						color: "var(--fg)",
-						outline: "none",
-						boxShadow: "var(--shadow-xs)",
-						minWidth: 180,
-					}}
+					className="bg-card border border-border rounded-full py-2.25 pr-4 pl-9.5 font-sans text-sm text-foreground outline-none shadow-xs min-w-45"
 				/>
 			</form>
 
-			<div style={selectWrap}>
+			<div className={SELECT_WRAP}>
 				<select
 					aria-label="Care type"
 					value={params.get("type") ?? ""}
 					onChange={(e) => update("type", e.target.value)}
-					style={selectStyle}
+					className={SELECT_CLASS}
 				>
 					{TYPES.map((t) => (
 						<option
@@ -119,14 +77,7 @@ export function SearchFilters() {
 						</option>
 					))}
 				</select>
-				<span
-					style={{
-						position: "absolute",
-						right: 12,
-						color: "var(--muted-fg)",
-						pointerEvents: "none",
-					}}
-				>
+				<span className="absolute right-3 text-muted-foreground pointer-events-none">
 					<Icon
 						name="chevron-down"
 						size={15}
@@ -134,12 +85,12 @@ export function SearchFilters() {
 				</span>
 			</div>
 
-			<div style={selectWrap}>
+			<div className={SELECT_WRAP}>
 				<select
 					aria-label="Minimum rating"
 					value={params.get("minRating") ?? ""}
 					onChange={(e) => update("minRating", e.target.value)}
-					style={selectStyle}
+					className={SELECT_CLASS}
 				>
 					{RATINGS.map((r) => (
 						<option
@@ -150,14 +101,7 @@ export function SearchFilters() {
 						</option>
 					))}
 				</select>
-				<span
-					style={{
-						position: "absolute",
-						right: 12,
-						color: "var(--muted-fg)",
-						pointerEvents: "none",
-					}}
-				>
+				<span className="absolute right-3 text-muted-foreground pointer-events-none">
 					<Icon
 						name="chevron-down"
 						size={15}

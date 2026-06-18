@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV = [
@@ -21,73 +22,38 @@ export function SiteHeader({ onLogoClick }: { onLogoClick?: () => void }) {
 
 	return (
 		<header
+			className="flex items-center gap-4 px-6 py-3 sticky top-0 z-30 backdrop-blur-[10px] border-b"
 			style={{
-				display: "flex",
-				alignItems: "center",
-				gap: 16,
-				padding: "12px 24px",
-				position: "sticky",
-				top: 0,
-				zIndex: 30,
 				background: "color-mix(in srgb, var(--bg) 88%, transparent)",
-				backdropFilter: "blur(10px)",
-				WebkitBackdropFilter: "blur(10px)",
-				borderBottom: "1px solid var(--border)",
 			}}
 		>
 			<Link
 				href="/"
 				onClick={onLogoClick}
-				style={{
-					display: "inline-flex",
-					alignItems: "center",
-					gap: 9,
-					textDecoration: "none",
-				}}
+				className="inline-flex items-center gap-2.25 no-underline"
 			>
 				{/* eslint-disable-next-line @next/next/no-img-element */}
 				<img
 					src="/brand/kindello-mark-clean.png"
 					alt="Kindello"
-					style={{ height: 30, width: "auto", display: "block" }}
+					className="h-7.5 w-auto block"
 				/>
-				<span
-					style={{
-						fontSize: 21,
-						fontWeight: 600,
-						letterSpacing: "-0.02em",
-						color: "var(--color-primary)",
-					}}
-				>
+				<span className="text-[21px] font-semibold tracking-[-0.02em] text-primary">
 					Kindello
 				</span>
 			</Link>
 
-			<nav
-				style={{
-					display: "none",
-					alignItems: "center",
-					gap: 2,
-					marginLeft: 14,
-				}}
-				className="ds-header-nav"
-			>
+			<nav className="hidden min-[820px]:flex items-center gap-0.5 ml-3.5">
 				{NAV.map((n) => {
 					const active = pathname === n.href;
 					return (
 						<Link
 							key={n.label}
 							href={n.href}
-							style={{
-								padding: "8px 12px",
-								fontSize: 14.5,
-								fontWeight: 500,
-								color: active
-									? "var(--color-primary)"
-									: "var(--text-body)",
-								borderRadius: "var(--radius-md)",
-								textDecoration: "none",
-							}}
+							className={cn(
+								"px-3 py-2 text-[14.5px] font-medium rounded-md no-underline",
+								active ? "text-primary" : "text-body",
+							)}
 						>
 							{n.label}
 						</Link>
@@ -95,36 +61,18 @@ export function SiteHeader({ onLogoClick }: { onLogoClick?: () => void }) {
 				})}
 			</nav>
 
-			<span style={{ flex: 1 }} />
+			<span className="flex-1" />
 
 			<ThemeToggle />
 			<Link
 				href="/search"
-				style={{
-					display: "none",
-					fontSize: 14,
-					fontWeight: 600,
-					color: "var(--text-body)",
-					padding: "8px 14px",
-					textDecoration: "none",
-				}}
-				className="ds-header-signin"
+				className="hidden min-[820px]:inline-flex text-sm font-semibold text-body px-3.5 py-2 no-underline"
 			>
 				Sign in
 			</Link>
 			<Link
 				href="/list-your-centre"
-				style={{
-					fontSize: 14,
-					fontWeight: 600,
-					color: "#fff",
-					background: "var(--color-primary)",
-					padding: "9px 16px",
-					borderRadius: "var(--radius-md)",
-					boxShadow: "var(--shadow-teal)",
-					textDecoration: "none",
-					whiteSpace: "nowrap",
-				}}
+				className="text-sm font-semibold text-white bg-primary px-4 py-2.25 rounded-md shadow-teal no-underline whitespace-nowrap"
 			>
 				List your centre
 			</Link>

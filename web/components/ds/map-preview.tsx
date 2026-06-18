@@ -78,16 +78,12 @@ export function MapPreview({
 	return (
 		<div
 			aria-hidden={!points.length}
+			className="relative w-full overflow-hidden border shadow-sm"
 			style={{
-				position: "relative",
 				height,
-				width: "100%",
 				borderRadius: rounded,
-				overflow: "hidden",
-				border: "1px solid var(--border)",
 				background:
 					"radial-gradient(120% 120% at 80% 10%, color-mix(in srgb, var(--teal-500) 12%, var(--secondary)), var(--secondary))",
-				boxShadow: "var(--shadow-sm)",
 				...style,
 			}}
 		>
@@ -95,7 +91,7 @@ export function MapPreview({
 			<svg
 				width="100%"
 				height="100%"
-				style={{ position: "absolute", inset: 0, opacity: 0.5 }}
+				className="absolute inset-0 opacity-50"
 				aria-hidden
 			>
 				<defs>
@@ -138,57 +134,23 @@ export function MapPreview({
 			{placed.map(({ x, y, p }, i) => (
 				<span
 					key={i}
+					className="absolute flex flex-col items-center z-2"
 					style={{
-						position: "absolute",
 						left: `${x}%`,
 						top: `${y}%`,
 						transform: "translate(-50%, -100%)",
-						display: "flex",
-						flexDirection: "column",
-						alignItems: "center",
-						zIndex: 2,
 					}}
 				>
 					{showLabels && p.label && (
-						<span
-							style={{
-								marginBottom: 4,
-								padding: "2px 7px",
-								fontSize: 11,
-								fontWeight: 600,
-								whiteSpace: "nowrap",
-								color: "var(--fg)",
-								background: "var(--surface)",
-								borderRadius: "var(--radius-pill)",
-								boxShadow: "var(--shadow-sm)",
-							}}
-						>
+						<span className="mb-1 px-1.75 py-0.5 text-[11px] font-semibold whitespace-nowrap text-foreground bg-card rounded-full shadow-sm">
 							{p.label}
 						</span>
 					)}
 					<span
-						style={{
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							width: 22,
-							height: 22,
-							borderRadius: "50% 50% 50% 0",
-							transform: "rotate(45deg)",
-							background: pinTone(p.rating),
-							border: "2px solid #fff",
-							boxShadow: "0 2px 5px rgba(0,0,0,.28)",
-						}}
+						className="flex items-center justify-center w-5.5 h-5.5 border-2 border-white rounded-[50%_50%_50%_0] rotate-45 shadow-[0_2px_5px_rgba(0,0,0,.28)]"
+						style={{ background: pinTone(p.rating) }}
 					>
-						<span
-							style={{
-								width: 6,
-								height: 6,
-								borderRadius: "var(--radius-pill)",
-								background: "#fff",
-								transform: "rotate(-45deg)",
-							}}
-						/>
+						<span className="w-1.5 h-1.5 rounded-full bg-white -rotate-45" />
 					</span>
 				</span>
 			))}

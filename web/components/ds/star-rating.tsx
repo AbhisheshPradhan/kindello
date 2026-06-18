@@ -21,21 +21,10 @@ export function StarRating({
 		stars.push(
 			<span
 				key={i}
-				style={{
-					position: "relative",
-					display: "inline-block",
-					width: size,
-					height: size,
-					lineHeight: 0,
-				}}
+				className="relative inline-block leading-0"
+				style={{ width: size, height: size }}
 			>
-				<span
-					style={{
-						color: "var(--border)",
-						position: "absolute",
-						inset: 0,
-					}}
-				>
+				<span className="text-border absolute inset-0">
 					<Icon
 						name="star"
 						size={size}
@@ -43,13 +32,8 @@ export function StarRating({
 					/>
 				</span>
 				<span
-					style={{
-						color: "var(--sun-400)",
-						position: "absolute",
-						inset: 0,
-						width: `${fill * 100}%`,
-						overflow: "hidden",
-					}}
+					className="text-sun-400 absolute inset-0 overflow-hidden"
+					style={{ width: `${fill * 100}%` }}
 				>
 					<svg
 						viewBox="0 0 24 24"
@@ -68,28 +52,20 @@ export function StarRating({
 	}
 	return (
 		<span
-			style={{
-				display: "inline-flex",
-				alignItems: "center",
-				gap: 7,
-				fontFamily: "var(--font-sans)",
-				...style,
-			}}
+			className="inline-flex items-center gap-1.75 font-sans"
+			style={style}
 		>
-			<span style={{ display: "inline-flex", gap: 2 }}>{stars}</span>
+			<span className="inline-flex gap-0.5">{stars}</span>
 			{showValue && (
-				<span style={{ fontSize: size - 2, color: "var(--text-body)" }}>
-					<strong
-						style={{
-							fontWeight: 600,
-							color: "var(--fg)",
-							fontFamily: "var(--font-mono)",
-						}}
-					>
+				<span
+					className="text-body"
+					style={{ fontSize: size - 2 }}
+				>
+					<strong className="font-semibold text-foreground font-mono">
 						{value.toFixed(1)}
 					</strong>
 					{count != null && (
-						<span style={{ color: "var(--muted-fg)" }}>
+						<span className="text-muted-foreground">
 							{" "}
 							· {count} reviews
 						</span>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
+import { cn } from "@/lib/utils";
 import { MODELS, DEFAULT_MODEL } from "@/lib/models";
 import type { DirectoryCentre, CategoryCount } from "@/lib/directory";
 import { SiteHeader } from "@/components/ds/site-header";
@@ -190,13 +191,8 @@ export function HomeExperience({
 	const placeholderOverlay = useMemo(
 		() => (
 			<span>
-				<span style={{ color: "var(--muted-fg)" }}>{typed}</span>
-				<span
-					style={{
-						animation: "ds-caret-blink 1s step-end infinite",
-						color: "var(--teal-500)",
-					}}
-				>
+				<span className="text-muted-foreground">{typed}</span>
+				<span className="text-teal-500 animate-[ds-caret-blink_1s_step-end_infinite]">
 					|
 				</span>
 			</span>
@@ -206,87 +202,46 @@ export function HomeExperience({
 
 	return (
 		<div
-			style={{
-				// Fresh marketing page scrolls normally; in chat mode the viewport
-				// is fixed so the thread scrolls internally and the composer pins.
-				...(isFresh
-					? { minHeight: "100dvh" }
-					: { height: "100dvh", overflow: "hidden" }),
-				display: "flex",
-				flexDirection: "column",
-				background: "var(--bg)",
-			}}
+			// Fresh marketing page scrolls normally; in chat mode the viewport
+			// is fixed so the thread scrolls internally and the composer pins.
+			className={cn(
+				"flex flex-col bg-background",
+				isFresh ? "min-h-dvh" : "h-dvh overflow-hidden",
+			)}
 		>
 			<SiteHeader onLogoClick={isFresh ? undefined : () => newSearch()} />
 
 			{isFresh ? (
-				<main style={{ flex: 1 }}>
+				<main className="flex-1">
 					{/* Hero */}
 					<section
+						className="text-center pt-18 px-6 pb-14"
 						style={{
 							background:
 								"linear-gradient(180deg, var(--teal-tint), var(--bg) 86%)",
-							padding: "72px 24px 56px",
-							textAlign: "center",
 						}}
 					>
 						<div
 							ref={heroRef}
-							style={{ maxWidth: 760, margin: "0 auto" }}
+							className="max-w-190 mx-auto"
 						>
-							<span
-								style={{
-									display: "inline-flex",
-									alignItems: "center",
-									gap: 7,
-									padding: "6px 14px",
-									fontSize: 13.5,
-									fontWeight: 600,
-									color: "var(--teal-700)",
-									background: "var(--surface)",
-									border: "1px solid var(--teal-200)",
-									borderRadius: "var(--radius-pill)",
-									boxShadow: "var(--shadow-xs)",
-									marginBottom: 22,
-								}}
-							>
+							<span className="inline-flex items-center gap-1.75 px-3.5 py-1.5 text-[13.5px] font-semibold text-teal-700 bg-card border border-teal-200 rounded-full shadow-xs mb-5.5">
 								<Icon
 									name="shield-check"
 									size={14}
 								/>
 								{total.toLocaleString()} Approved Centres
 							</span>
-							<h1
-								className="ds-hero-h1"
-								style={{
-									fontWeight: 600,
-									letterSpacing: "-0.03em",
-									lineHeight: 1.05,
-									color: "var(--fg)",
-								}}
-							>
+							<h1 className="ds-hero-h1 font-semibold tracking-[-0.03em] leading-[1.05] text-foreground">
 								Find the right childcare, faster.
 							</h1>
-							<p
-								style={{
-									fontSize: 19,
-									lineHeight: 1.5,
-									color: "var(--text-body)",
-									margin: "18px auto 0",
-									maxWidth: 580,
-								}}
-							>
+							<p className="text-[19px] leading-normal text-body mt-4.5 mx-auto max-w-145">
 								Ask in plain English. Kindello searches every
 								approved service in Australia by location, care
 								type and quality rating.
 							</p>
 
-							<div
-								style={{
-									margin: "36px auto 0",
-									textAlign: "left",
-								}}
-							>
+							<div className="mt-9 mx-auto text-left">
 								<ChatComposer
 									size="lg"
 									value={input}
@@ -300,15 +255,7 @@ export function HomeExperience({
 								/>
 							</div>
 
-							<div
-								style={{
-									display: "flex",
-									flexWrap: "wrap",
-									gap: 9,
-									justifyContent: "center",
-									marginTop: 20,
-								}}
-							>
+							<div className="flex flex-wrap gap-2.25 justify-center mt-5">
 								{PROMPT_CHIPS.map((chip) => (
 									<PromptChip
 										key={chip}
@@ -323,20 +270,8 @@ export function HomeExperience({
 
 					{/* Returning visitor — pick up where you left off */}
 					{history.length > 0 && (
-						<section
-							className="ds-container"
-							style={{ padding: "8px 24px 8px" }}
-						>
-							<h2
-								className="ds-section-h2"
-								style={{
-									fontWeight: 600,
-									letterSpacing: "-0.02em",
-									color: "var(--fg)",
-									marginBottom: 18,
-									marginTop: 32,
-								}}
-							>
+						<section className="ds-container py-2">
+							<h2 className="ds-section-h2 font-semibold tracking-[-0.02em] text-foreground mb-4.5 mt-8">
 								Pick up where you left off
 							</h2>
 							<div className="ds-grid ds-grid-3">
@@ -365,7 +300,7 @@ export function HomeExperience({
 					<SiteFooter />
 				</main>
 			) : (
-				<main style={{ flex: 1, minHeight: 0, display: "flex" }}>
+				<main className="flex-1 min-h-0 flex">
 					<ChatView
 						messages={messages}
 						busy={busy}

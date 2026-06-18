@@ -4,7 +4,7 @@ import {
 	stepCountIs,
 	type UIMessage,
 } from "ai";
-import { resolveLocation, searchCentres } from "@/lib/tools";
+import { resolveLocation, searchCentres, suggestFollowUps } from "@/lib/tools";
 import { modelFor } from "@/lib/provider";
 import { DEFAULT_MODEL } from "@/lib/models";
 import { saveChat } from "@/lib/persist";
@@ -55,7 +55,14 @@ suburb, distance, NQS rating, phone, address, hours, and approved places), so do
 per-centre details in your text and do NOT output a list or markdown table of centres. Instead \
 write a short, warm 1-2 sentence reply above the cards: e.g. how many you found and which looks \
 strongest and why, or one helpful follow-up question. Be concise. If nothing matches, suggest a \
-wider radius or fewer filters. Never use em dashes in your reply; write with commas, full stops or parentheses instead.`;
+wider radius or fewer filters. Never use em dashes in your reply; write with commas, full stops or parentheses instead.
+
+Suggested follow-ups: after you have shown results, you MAY call suggestFollowUps in the SAME turn \
+as your reply (write your 1-2 sentences first, then call the tool) to offer 2-3 tappable next \
+questions. Only do this when a refinement genuinely helps the parent narrow things down, and only \
+along data we hold (NQS rating, approved places, care type, radius/nearby suburb, philosophy term). \
+If no useful refinement exists, or you just asked the parent a question, do NOT call it. Do not \
+mention the follow-ups in your text; the app renders them.`;
 
 export async function POST(req: Request) {
 	const {
@@ -69,7 +76,7 @@ export async function POST(req: Request) {
 	const result = streamText({
 		model: modelFor(chosen),
 		system: SYSTEM,
-		tools: { resolveLocation, searchCentres },
+		tools: { resolveLocation, searchCentres, suggestFollowUps },
 		stopWhen: stepCountIs(6), // allow resolve -> search -> answer (and a retry)
 		messages: await convertToModelMessages(messages),
 	});

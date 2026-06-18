@@ -1,9 +1,25 @@
 "use client";
 
-import type { AnchorHTMLAttributes, CSSProperties } from "react";
+import type { AnchorHTMLAttributes } from "react";
+import { cn } from "@/lib/utils";
 import { Icon, type IconName } from "./icon";
 
 type Tone = "teal" | "coral" | "sun";
+
+const TONES: Record<Tone, { box: string; hoverBorder: string }> = {
+	teal: {
+		box: "bg-teal-50 text-teal-600",
+		hoverBorder: "hover:border-teal-600",
+	},
+	coral: {
+		box: "bg-coral-100 text-coral-500",
+		hoverBorder: "hover:border-coral-500",
+	},
+	sun: {
+		box: "bg-sun-100 text-sun-500",
+		hoverBorder: "hover:border-sun-500",
+	},
+};
 
 /**
  * CategoryTile — "Browse by type" tile. Icon in a soft tinted square, label,
@@ -14,7 +30,7 @@ export function CategoryTile({
 	label = "Long Day Care",
 	count = null,
 	tone = "teal",
-	style,
+	className,
 	...props
 }: {
 	icon?: IconName;
@@ -22,72 +38,32 @@ export function CategoryTile({
 	count?: number | null;
 	tone?: Tone;
 } & AnchorHTMLAttributes<HTMLAnchorElement>) {
-	const tones: Record<Tone, { fg: string; bg: string }> = {
-		teal: { fg: "var(--teal-600)", bg: "var(--teal-50)" },
-		coral: { fg: "var(--coral-500)", bg: "var(--coral-100)" },
-		sun: { fg: "var(--sun-500)", bg: "var(--sun-100)" },
-	};
-	const t = tones[tone];
-	const css: CSSProperties = {
-		display: "flex",
-		flexDirection: "column",
-		alignItems: "flex-start",
-		gap: 12,
-		padding: "20px",
-		textAlign: "left",
-		textDecoration: "none",
-		background: "var(--surface)",
-		border: "1px solid var(--border)",
-		borderRadius: "var(--radius-xl)",
-		cursor: "pointer",
-		boxShadow: "var(--shadow-xs)",
-		transition: "all .18s ease",
-		width: "100%",
-		...style,
-	};
+	const t = TONES[tone];
 	return (
 		<a
-			style={css}
-			onMouseEnter={(e) => {
-				e.currentTarget.style.boxShadow = "var(--shadow-md)";
-				e.currentTarget.style.borderColor = t.fg;
-				e.currentTarget.style.transform = "translateY(-2px)";
-			}}
-			onMouseLeave={(e) => {
-				e.currentTarget.style.boxShadow = "var(--shadow-xs)";
-				e.currentTarget.style.borderColor = "var(--border)";
-				e.currentTarget.style.transform = "none";
-			}}
+			className={cn(
+				"flex flex-col items-start gap-3 p-5 text-left w-full bg-card border border-border rounded-xl shadow-xs transition-all duration-180 hover:shadow-md hover:-translate-y-0.5",
+				t.hoverBorder,
+				className,
+			)}
 			{...props}
 		>
 			<span
-				style={{
-					display: "inline-flex",
-					alignItems: "center",
-					justifyContent: "center",
-					width: 48,
-					height: 48,
-					borderRadius: "var(--radius-lg)",
-					background: t.bg,
-					color: t.fg,
-				}}
+				className={cn(
+					"inline-flex items-center justify-center w-12 h-12 rounded-lg",
+					t.box,
+				)}
 			>
 				<Icon
 					name={icon}
 					size={24}
 				/>
 			</span>
-			<span style={{ fontSize: 16, fontWeight: 600, color: "var(--fg)" }}>
+			<span className="text-base font-semibold text-foreground">
 				{label}
 			</span>
 			{count != null && (
-				<span
-					style={{
-						fontSize: 13,
-						color: "var(--muted-fg)",
-						fontFamily: "var(--font-mono)",
-					}}
-				>
+				<span className="text-[13px] text-muted-foreground font-mono">
 					{count.toLocaleString()} centres
 				</span>
 			)}

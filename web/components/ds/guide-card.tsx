@@ -1,6 +1,13 @@
 "use client";
 
 import type { AnchorHTMLAttributes } from "react";
+import { cn } from "@/lib/utils";
+
+const GRADS = [
+	"linear-gradient(120deg, #57c5c5, #1ca6a6)",
+	"linear-gradient(120deg, #ffd766, #ff8166)",
+	"linear-gradient(120deg, #2fb3b3, #136d6d)",
+];
 
 /**
  * GuideCard — parent-guide article card. Gradient thumbnail, category eyebrow,
@@ -11,7 +18,7 @@ export function GuideCard({
 	category = "Choosing care",
 	readTime = "5 min read",
 	seed = 0,
-	style,
+	className,
 	...props
 }: {
 	title?: string;
@@ -19,71 +26,27 @@ export function GuideCard({
 	readTime?: string;
 	seed?: number;
 } & AnchorHTMLAttributes<HTMLAnchorElement>) {
-	const grads = [
-		"linear-gradient(120deg, #57c5c5, #1ca6a6)",
-		"linear-gradient(120deg, #ffd766, #ff8166)",
-		"linear-gradient(120deg, #2fb3b3, #136d6d)",
-	];
 	return (
 		<a
-			style={{
-				display: "flex",
-				flexDirection: "column",
-				background: "var(--surface)",
-				border: "1px solid var(--border)",
-				borderRadius: "var(--radius-xl)",
-				overflow: "hidden",
-				textDecoration: "none",
-				boxShadow: "var(--shadow-sm)",
-				transition: "all .18s ease",
-				cursor: "pointer",
-				...style,
-			}}
-			onMouseEnter={(e) => {
-				e.currentTarget.style.boxShadow = "var(--shadow-md)";
-				e.currentTarget.style.transform = "translateY(-2px)";
-			}}
-			onMouseLeave={(e) => {
-				e.currentTarget.style.boxShadow = "var(--shadow-sm)";
-				e.currentTarget.style.transform = "none";
-			}}
+			className={cn(
+				"flex flex-col bg-card border border-border rounded-xl overflow-hidden shadow-sm transition-all duration-180 hover:shadow-md hover:-translate-y-0.5",
+				className,
+			)}
 			{...props}
 		>
+			{/* Data-driven gradient thumbnail — stays inline. */}
 			<div
-				style={{ height: 150, background: grads[seed % grads.length] }}
+				className="h-37.5"
+				style={{ background: GRADS[seed % GRADS.length] }}
 			/>
-			<div
-				style={{
-					padding: "16px 18px 20px",
-					display: "flex",
-					flexDirection: "column",
-					gap: 8,
-				}}
-			>
-				<span
-					style={{
-						fontSize: 12,
-						fontWeight: 600,
-						letterSpacing: ".04em",
-						textTransform: "uppercase",
-						color: "var(--teal-600)",
-					}}
-				>
+			<div className="px-4.5 pt-4 pb-5 flex flex-col gap-2">
+				<span className="text-xs font-semibold tracking-[.04em] uppercase text-teal-600">
 					{category}
 				</span>
-				<h3
-					style={{
-						fontSize: 18,
-						fontWeight: 600,
-						letterSpacing: "-0.01em",
-						color: "var(--fg)",
-						lineHeight: 1.3,
-						margin: 0,
-					}}
-				>
+				<h3 className="text-[18px] font-semibold tracking-[-0.01em] text-foreground leading-[1.3] m-0">
 					{title}
 				</h3>
-				<span style={{ fontSize: 13, color: "var(--muted-fg)" }}>
+				<span className="text-[13px] text-muted-foreground">
 					{readTime}
 				</span>
 			</div>

@@ -1,10 +1,18 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
+import { cn } from "@/lib/utils";
 import { Icon } from "./icon";
 import { Tag } from "./tag";
 import { RatingBadge } from "./rating-badge";
 import { StarRating } from "./star-rating";
+
+const PHOTO_GRADS = [
+	"linear-gradient(135deg, #2fb3b3, #1ca6a6 60%, #136d6d)",
+	"linear-gradient(135deg, #ffc83d, #ff8166 70%, #f9603f)",
+	"linear-gradient(135deg, #57c5c5, #2fb3b3 60%, #158888)",
+	"linear-gradient(135deg, #ffd766, #ffc83d 60%, #f5b125)",
+];
 
 // Warm gradient stand-in for a centre photo (no real imagery yet — Tier-2 enrichment).
 function PhotoPlaceholder({
@@ -14,35 +22,22 @@ function PhotoPlaceholder({
 	seed?: number;
 	featured?: boolean;
 }) {
-	const grads = [
-		"linear-gradient(135deg, #2fb3b3, #1ca6a6 60%, #136d6d)",
-		"linear-gradient(135deg, #ffc83d, #ff8166 70%, #f9603f)",
-		"linear-gradient(135deg, #57c5c5, #2fb3b3 60%, #158888)",
-		"linear-gradient(135deg, #ffd766, #ffc83d 60%, #f5b125)",
-	];
 	return (
 		<div
-			style={{
-				position: "relative",
-				width: "100%",
-				height: featured ? "100%" : 168,
-				minHeight: featured ? 280 : 168,
-				background: grads[seed % grads.length],
-				display: "flex",
-				alignItems: "center",
-				justifyContent: "center",
-				overflow: "hidden",
-			}}
+			className={cn(
+				"relative w-full flex items-center justify-center overflow-hidden",
+				featured ? "h-full min-h-70" : "h-42 min-h-42",
+			)}
+			style={{ background: PHOTO_GRADS[seed % PHOTO_GRADS.length] }}
 		>
 			<div
+				className="absolute inset-0"
 				style={{
-					position: "absolute",
-					inset: 0,
 					background:
 						"radial-gradient(circle at 70% 20%, rgba(255,255,255,.25), transparent 55%)",
 				}}
 			/>
-			<span style={{ color: "rgba(255,255,255,.55)" }}>
+			<span className="text-white/55">
 				<Icon
 					name="baby"
 					size={featured ? 64 : 44}
@@ -91,52 +86,20 @@ export function CentreCard({
 }: CentreCardProps) {
 	const [saved, setSaved] = useState(false);
 
-	const card: CSSProperties = {
-		display: "flex",
-		flexDirection: featured ? "row" : "column",
-		background: "var(--surface)",
-		border: "1px solid var(--border)",
-		borderRadius: "var(--radius-xl)",
-		overflow: "hidden",
-		boxShadow: "var(--shadow-sm)",
-		transition:
-			"box-shadow .18s ease, border-color .18s ease, transform .18s ease",
-		cursor: "pointer",
-		textDecoration: "none",
-		color: "inherit",
-		...style,
-	};
+	const cardClass = cn(
+		"flex bg-card border border-border rounded-xl overflow-hidden shadow-sm no-underline text-inherit transition-[box-shadow,border-color,transform] duration-180 hover:shadow-md hover:border-teal-200 hover:-translate-y-0.5",
+		featured ? "flex-row" : "flex-col",
+	);
 
 	const Inner = (
 		<>
-			<div
-				style={{
-					position: "relative",
-					flex: featured ? "0 0 44%" : "none",
-				}}
-			>
+			<div className={cn("relative", featured && "flex-[0_0_44%]")}>
 				<PhotoPlaceholder
 					seed={seed}
 					featured={featured}
 				/>
 				{verified && (
-					<span
-						style={{
-							position: "absolute",
-							top: 12,
-							left: 12,
-							display: "inline-flex",
-							alignItems: "center",
-							gap: 5,
-							padding: "5px 10px",
-							fontSize: 12,
-							fontWeight: 600,
-							color: "var(--teal-700)",
-							background: "rgba(255,255,255,.94)",
-							borderRadius: "var(--radius-pill)",
-							boxShadow: "var(--shadow-sm)",
-						}}
-					>
+					<span className="absolute top-3 left-3 inline-flex items-center gap-1.25 px-2.5 py-1.25 text-xs font-semibold text-teal-700 bg-white/94 rounded-full shadow-sm">
 						<Icon
 							name="shield-check"
 							size={13}
@@ -151,22 +114,10 @@ export function CentreCard({
 						setSaved((s) => !s);
 					}}
 					aria-label="Save"
-					style={{
-						position: "absolute",
-						top: 12,
-						right: 12,
-						display: "inline-flex",
-						alignItems: "center",
-						justifyContent: "center",
-						width: 34,
-						height: 34,
-						borderRadius: "var(--radius-pill)",
-						background: "rgba(255,255,255,.9)",
-						border: "none",
-						cursor: "pointer",
-						color: saved ? "var(--coral-500)" : "var(--muted-fg)",
-						boxShadow: "var(--shadow-sm)",
-					}}
+					className={cn(
+						"absolute top-3 right-3 inline-flex items-center justify-center w-8.5 h-8.5 rounded-full bg-white/90 border-none shadow-sm",
+						saved ? "text-coral-500" : "text-muted-foreground",
+					)}
 				>
 					<svg
 						viewBox="0 0 24 24"
@@ -184,34 +135,24 @@ export function CentreCard({
 			</div>
 
 			<div
-				style={{
-					padding: featured ? "26px 28px" : "16px",
-					display: "flex",
-					flexDirection: "column",
-					gap: featured ? 12 : 9,
-					flex: 1,
-					textAlign: featured ? "left" : "center",
-					alignItems: featured ? "stretch" : "center",
-				}}
+				className={cn(
+					"flex flex-col flex-1",
+					featured
+						? "p-[26px_28px] gap-3 text-left items-stretch"
+						: "p-4 gap-2.25 text-center items-center",
+				)}
 			>
 				<div
-					style={{
-						display: "flex",
-						alignItems: "flex-start",
-						justifyContent: featured ? "space-between" : "center",
-						gap: 10,
-						flexWrap: "wrap",
-					}}
+					className={cn(
+						"flex items-start gap-2.5 flex-wrap",
+						featured ? "justify-between" : "justify-center",
+					)}
 				>
 					<h3
-						style={{
-							fontSize: featured ? 24 : 18,
-							fontWeight: 600,
-							letterSpacing: "-0.02em",
-							color: "var(--fg)",
-							lineHeight: 1.2,
-							margin: 0,
-						}}
+						className={cn(
+							"font-semibold tracking-[-0.02em] text-foreground leading-[1.2] m-0",
+							featured ? "text-2xl" : "text-[18px]",
+						)}
 					>
 						{name}
 					</h3>
@@ -219,14 +160,10 @@ export function CentreCard({
 				</div>
 
 				<div
-					style={{
-						display: "flex",
-						alignItems: "center",
-						justifyContent: featured ? "flex-start" : "center",
-						gap: 6,
-						fontSize: 14,
-						color: "var(--muted-fg)",
-					}}
+					className={cn(
+						"flex items-center gap-1.5 text-sm text-muted-foreground",
+						featured ? "justify-start" : "justify-center",
+					)}
 				>
 					<Icon
 						name="map-pin"
@@ -239,10 +176,10 @@ export function CentreCard({
 				</div>
 
 				<div
-					style={{
-						display: "flex",
-						justifyContent: featured ? "flex-start" : "center",
-					}}
+					className={cn(
+						"flex",
+						featured ? "justify-start" : "justify-center",
+					)}
 				>
 					<StarRating
 						value={rating}
@@ -252,12 +189,10 @@ export function CentreCard({
 				</div>
 
 				<div
-					style={{
-						display: "flex",
-						flexWrap: "wrap",
-						gap: 6,
-						justifyContent: featured ? "flex-start" : "center",
-					}}
+					className={cn(
+						"flex flex-wrap gap-1.5",
+						featured ? "justify-start" : "justify-center",
+					)}
 				>
 					{tags.map((t) => (
 						<Tag key={t}>{t}</Tag>
@@ -266,15 +201,10 @@ export function CentreCard({
 
 				{keyInfo && (
 					<div
-						style={{
-							display: "flex",
-							alignItems: "center",
-							justifyContent: featured ? "flex-start" : "center",
-							gap: 6,
-							fontSize: 14,
-							fontWeight: 600,
-							color: "var(--coral-500)",
-						}}
+						className={cn(
+							"flex items-center gap-1.5 text-sm font-semibold text-coral-500",
+							featured ? "justify-start" : "justify-center",
+						)}
 					>
 						<Icon
 							name="check"
@@ -285,17 +215,12 @@ export function CentreCard({
 				)}
 
 				<div
-					style={{
-						display: "flex",
-						alignItems: "center",
-						justifyContent: featured ? "flex-start" : "center",
-						gap: 6,
-						marginTop: "auto",
-						paddingTop: featured ? 6 : 4,
-						fontSize: 14,
-						fontWeight: 600,
-						color: "var(--teal-600)",
-					}}
+					className={cn(
+						"flex items-center gap-1.5 mt-auto text-sm font-semibold text-teal-600",
+						featured
+							? "justify-start pt-1.5"
+							: "justify-center pt-1",
+					)}
 				>
 					View details{" "}
 					<Icon
@@ -307,25 +232,12 @@ export function CentreCard({
 		</>
 	);
 
-	const handlers = {
-		onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
-			e.currentTarget.style.boxShadow = "var(--shadow-md)";
-			e.currentTarget.style.borderColor = "var(--teal-200)";
-			e.currentTarget.style.transform = "translateY(-2px)";
-		},
-		onMouseLeave: (e: React.MouseEvent<HTMLElement>) => {
-			e.currentTarget.style.boxShadow = "var(--shadow-sm)";
-			e.currentTarget.style.borderColor = "var(--border)";
-			e.currentTarget.style.transform = "none";
-		},
-	};
-
 	if (href) {
 		return (
 			<a
 				href={href}
-				style={card}
-				{...handlers}
+				className={cardClass}
+				style={style}
 			>
 				{Inner}
 			</a>
@@ -333,8 +245,8 @@ export function CentreCard({
 	}
 	return (
 		<div
-			style={card}
-			{...handlers}
+			className={cardClass}
+			style={style}
 		>
 			{Inner}
 		</div>

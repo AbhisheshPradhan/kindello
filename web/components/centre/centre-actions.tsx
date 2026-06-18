@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ds/button";
 import { Icon } from "@/components/ds/icon";
 
@@ -14,7 +15,7 @@ export function CentreActions({
 }) {
 	const [saved, setSaved] = useState(false);
 	return (
-		<div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+		<div className="flex flex-wrap gap-2.5">
 			<a
 				href={phone ? `tel:${phone}` : mapsLink}
 				target={phone ? undefined : "_blank"}
@@ -39,10 +40,7 @@ export function CentreActions({
 				onClick={() => setSaved((s) => !s)}
 				iconLeft={
 					<span
-						style={{
-							color: saved ? "var(--coral-500)" : "inherit",
-							display: "inline-flex",
-						}}
+						className={cn("inline-flex", saved && "text-coral-500")}
 					>
 						<svg
 							viewBox="0 0 24 24"

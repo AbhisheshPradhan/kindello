@@ -1,36 +1,29 @@
-import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 type Tone = "neutral" | "teal" | "coral" | "sun";
+
+const TONES: Record<Tone, string> = {
+	neutral: "bg-secondary text-body",
+	teal: "bg-teal-50 text-teal-700",
+	coral: "bg-coral-100 text-coral-600",
+	sun: "bg-sun-100 text-sun-500",
+};
 
 /** Tag — a small rounded pill for centre attributes ("Montessori", "Ages 0–5"). */
 export function Tag({
 	tone = "neutral",
-	style,
+	className,
 	children,
 	...props
 }: { tone?: Tone; children: ReactNode } & HTMLAttributes<HTMLSpanElement>) {
-	const tones: Record<Tone, CSSProperties> = {
-		neutral: { background: "var(--secondary)", color: "var(--text-body)" },
-		teal: { background: "var(--teal-50)", color: "var(--teal-700)" },
-		coral: { background: "var(--coral-100)", color: "var(--coral-600)" },
-		sun: { background: "var(--sun-100)", color: "var(--sun-500)" },
-	};
 	return (
 		<span
-			style={{
-				display: "inline-flex",
-				alignItems: "center",
-				gap: 5,
-				padding: "4px 11px",
-				fontFamily: "var(--font-sans)",
-				fontSize: 13,
-				fontWeight: 500,
-				lineHeight: 1.4,
-				borderRadius: "var(--radius-pill)",
-				whiteSpace: "nowrap",
-				...tones[tone],
-				...style,
-			}}
+			className={cn(
+				"inline-flex items-center gap-1.25 px-2.75 py-1 font-sans text-[13px] font-medium leading-[1.4] rounded-full whitespace-nowrap",
+				TONES[tone],
+				className,
+			)}
 			{...props}
 		>
 			{children}
