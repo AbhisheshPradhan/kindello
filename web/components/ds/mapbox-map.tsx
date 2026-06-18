@@ -20,31 +20,42 @@ function isValid(p: MapPoint) {
 }
 
 /** Build a teardrop pin matching the placeholder's pins (same Tailwind classes). */
-// A small card shown when a pin is clicked: name, type, NQS rating, address, link.
-// Built via DOM (not innerHTML) so centre names can't inject markup.
+// The card shown when a pin is clicked. The WHOLE card is a link that opens the centre's
+// detail page in a NEW TAB. Built via DOM (not innerHTML) so centre names can't inject markup.
 function makePinCard(p: MapPoint): HTMLElement {
-	const card = document.createElement("div");
-	card.className = "w-56 font-sans";
+	const card = document.createElement(p.id ? "a" : "div") as HTMLAnchorElement;
+	card.className =
+		"group block w-64 p-4 no-underline rounded-2xl bg-card text-foreground";
+	if (p.id) {
+		card.href = `/centre/${p.id}`;
+		card.target = "_blank";
+		card.rel = "noopener noreferrer";
+	}
 
 	const name = document.createElement("div");
-	name.className = "font-semibold text-[13.5px] leading-snug text-foreground";
+	name.className =
+		"font-semibold text-[15px] leading-snug pr-5 text-foreground transition-colors group-hover:text-teal-700";
 	name.textContent = p.label ?? "Centre";
 	card.appendChild(name);
 
 	if (p.serviceType) {
 		const type = document.createElement("div");
-		type.className = "text-[11.5px] text-muted-foreground mt-0.5";
+		type.className =
+			"mt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground";
 		type.textContent = p.serviceType;
 		card.appendChild(type);
 	}
 
 	if (typeof p.rating === "string" && p.rating) {
+		const tone = pinTone(p.rating);
 		const badge = document.createElement("div");
 		badge.className =
-			"inline-flex items-center gap-1.25 mt-1.5 px-2 py-0.5 rounded-full text-[11.5px] font-semibold bg-secondary text-body";
+			"inline-flex items-center gap-1.5 mt-2.5 px-2.5 py-1 rounded-full text-[12px] font-semibold";
+		badge.style.background = `color-mix(in srgb, ${tone} 14%, transparent)`;
+		badge.style.color = `color-mix(in srgb, ${tone} 70%, var(--foreground))`;
 		const dot = document.createElement("span");
 		dot.className = "w-2 h-2 rounded-full";
-		dot.style.background = pinTone(p.rating);
+		dot.style.background = tone;
 		badge.appendChild(dot);
 		badge.appendChild(document.createTextNode(p.rating));
 		card.appendChild(badge);
@@ -52,18 +63,29 @@ function makePinCard(p: MapPoint): HTMLElement {
 
 	if (p.address) {
 		const addr = document.createElement("div");
-		addr.className = "text-[11.5px] text-muted-foreground mt-1.5 leading-snug";
-		addr.textContent = p.address;
+		addr.className =
+			"mt-2.5 flex items-start gap-1.5 text-[12px] text-muted-foreground leading-snug";
+		const dot = document.createElement("span");
+		dot.textContent = "📍";
+		dot.className = "shrink-0 grayscale opacity-60 text-[11px] leading-[1.3]";
+		const txt = document.createElement("span");
+		txt.textContent = p.address;
+		addr.appendChild(dot);
+		addr.appendChild(txt);
 		card.appendChild(addr);
 	}
 
 	if (p.id) {
-		const link = document.createElement("a");
-		link.href = `/centre/${p.id}`;
-		link.className =
-			"mt-2 inline-block text-[12px] font-semibold text-teal-700 hover:underline";
-		link.textContent = "More info →";
-		card.appendChild(link);
+		const hint = document.createElement("div");
+		hint.className =
+			"mt-3 pt-2.5 border-t border-border text-[12px] font-semibold text-teal-700 inline-flex items-center gap-1";
+		hint.textContent = "Open profile";
+		const arrow = document.createElement("span");
+		arrow.textContent = "↗";
+		arrow.className =
+			"transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5";
+		hint.appendChild(arrow);
+		card.appendChild(hint);
 	}
 	return card;
 }
@@ -173,10 +195,11 @@ export default function MapboxMap({
 
 			// One reused popup — clicking a pin opens its card; clicking another moves it.
 			const popup = new mapboxgl.Popup({
-				offset: 26,
+				offset: 24,
 				closeButton: true,
 				closeOnClick: true,
-				maxWidth: "260px",
+				maxWidth: "280px",
+				className: "kindello-pin-popup",
 			});
 
 			for (const p of valid) {

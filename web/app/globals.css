@@ -485,3 +485,30 @@ select,
 		transition-duration: 0.001ms !important;
 	}
 }
+
+/* Finder map pin popup — let our card own the chrome (no default padding/box). */
+.kindello-pin-popup .mapboxgl-popup-content {
+	padding: 0;
+	border-radius: 16px;
+	background: var(--card);
+	box-shadow:
+		0 6px 24px rgba(0, 0, 0, 0.14),
+		0 1px 3px rgba(0, 0, 0, 0.08);
+	overflow: hidden;
+}
+.kindello-pin-popup .mapboxgl-popup-close-button {
+	width: 24px;
+	height: 24px;
+	top: 6px;
+	right: 6px;
+	border-radius: 9999px;
+	font-size: 16px;
+	color: var(--muted-fg);
+}
+.kindello-pin-popup .mapboxgl-popup-close-button:hover {
+	background: var(--secondary);
+}
+.kindello-pin-popup .mapboxgl-popup-tip {
+	border-top-color: var(--card);
+	border-bottom-color: var(--card);
+}
