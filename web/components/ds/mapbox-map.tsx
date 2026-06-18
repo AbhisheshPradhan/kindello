@@ -228,8 +228,23 @@ export default function MapboxMap({
 
 			if (interactive) {
 				viewedRef.current = loadViewed();
+				// Anchor-aware offset: when the card opens ABOVE the pin it must clear the
+				// ~38px-tall selected pin; when it flips BELOW (pin near the top edge) the
+				// point is the pin's tip, so only a small gap is needed. A single scalar
+				// can't do both — above floats, below would overlap.
+				const PIN_CLEAR = 38;
 				const popup = new mapboxgl.Popup({
-					offset: 32, // sits just above the selected pin's head (not overlapping, not floating)
+					offset: {
+						bottom: [0, -PIN_CLEAR],
+						"bottom-left": [0, -PIN_CLEAR],
+						"bottom-right": [0, -PIN_CLEAR],
+						top: [0, 8],
+						"top-left": [0, 8],
+						"top-right": [0, 8],
+						left: [10, -18],
+						right: [-10, -18],
+						center: [0, 0],
+					},
 					closeButton: true,
 					closeOnClick: true,
 					maxWidth: "280px",
