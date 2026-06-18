@@ -24,6 +24,32 @@ function mapsLink(parts: (string | null)[]): string {
 	return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
+// Human-readable service type(s) from the ACECQA flag columns. A single centre can
+// carry several (e.g. long day care + preschool), so join them. Family Day Care is
+// its own service_type; otherwise fall back to the raw value (e.g. Centre-Based Care).
+function serviceTypeLabel(r: {
+	raw_service_type: string | null;
+	is_long_day_care: boolean | null;
+	is_preschool_stand_alone: boolean | null;
+	is_preschool_part_of_school: boolean | null;
+	is_oshc_before_school: boolean | null;
+	is_oshc_after_school: boolean | null;
+	is_oshc_vacation_care: boolean | null;
+}): string | null {
+	if (r.raw_service_type === "Family Day Care") return "Family Day Care";
+	const t: string[] = [];
+	if (r.is_long_day_care) t.push("Long Day Care");
+	if (r.is_preschool_stand_alone || r.is_preschool_part_of_school)
+		t.push("Preschool");
+	if (
+		r.is_oshc_before_school ||
+		r.is_oshc_after_school ||
+		r.is_oshc_vacation_care
+	)
+		t.push("OSHC");
+	return t.length ? t.join(" · ") : r.raw_service_type;
+}
+
 export const resolveLocation = tool({
 	description:
 		"Turn an Australian suburb name or 4-digit postcode into a latitude/longitude to anchor a " +
@@ -206,6 +232,10 @@ export const searchCentres = tool({
               latitude::float8 AS latitude, longitude::float8 AS longitude,
               service_approval_number AS id,
               number_of_approved_places AS places,
+              service_type AS raw_service_type,
+              is_long_day_care, is_preschool_stand_alone,
+              is_preschool_part_of_school, is_oshc_before_school,
+              is_oshc_after_school, is_oshc_vacation_care,
               ${scoreExpr} AS match_score,
               round((ST_Distance(geog, ST_MakePoint($1,$2)::geography)/1000)::numeric, 2)::float8 AS distance_km
        FROM services
@@ -219,9 +249,28 @@ export const searchCentres = tool({
 				error: "No centres matched — try a wider radius or fewer filters.",
 			};
 		return rows.map((r) => {
-			const { match_score, ...rest } = r;
+			const {
+				match_score,
+				raw_service_type,
+				is_long_day_care,
+				is_preschool_stand_alone,
+				is_preschool_part_of_school,
+				is_oshc_before_school,
+				is_oshc_after_school,
+				is_oshc_vacation_care,
+				...rest
+			} = r;
 			return {
 				...rest,
+				service_type: serviceTypeLabel({
+					raw_service_type,
+					is_long_day_care,
+					is_preschool_stand_alone,
+					is_preschool_part_of_school,
+					is_oshc_before_school,
+					is_oshc_after_school,
+					is_oshc_vacation_care,
+				}),
 				...(keyword ? { match: MATCH_LABEL[match_score] } : {}),
 				maps_link: mapsLink([
 					r.service_name,

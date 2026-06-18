@@ -12,13 +12,9 @@ import { UserBubble } from "@/components/ds/user-bubble";
 import { FollowUps } from "@/components/ds/follow-ups";
 import { PlaceResultCard } from "@/components/ds/place-result-card";
 import { RatingBadge } from "@/components/ds/rating-badge";
+import { Tag } from "@/components/ds/tag";
 import { MapPreview, type MapPoint } from "@/components/ds/map-preview";
 import { Icon } from "@/components/ds/icon";
-import {
-	ChatContainerRoot,
-	ChatContainerContent,
-} from "@/components/ui/chat-container";
-import { ScrollButton } from "@/components/ui/scroll-button";
 import { Markdown } from "@/components/ui/markdown";
 import type { Centre } from "@/components/centre-card";
 import { summariseHours } from "@/lib/format";
@@ -118,9 +114,9 @@ function mapPoints(centres: Centre[], loc: Loc | null): MapPoint[] {
 	return pts;
 }
 
-// NQS tier ordering, best → worst (null/unknown = 0). Used to rank a "top pick"
-// and summarise the result set. The NQS rating is the only real quality signal we
-// hold; everything here is derived from the returned rows (no fabricated fees/reviews).
+// NQS tier ordering, best → worst (null/unknown = 0). Used to pick the superlative
+// badges and summarise the result set. The NQS rating is the only real quality signal
+// we hold; everything here is derived from the returned rows (no fabricated fees/reviews).
 const NQS_RANK: Record<string, number> = {
 	Excellent: 5,
 	"Exceeding NQS": 4,
@@ -131,32 +127,50 @@ function tierRank(r: string | null): number {
 	return r ? (NQS_RANK[r] ?? 0) : 0;
 }
 
-// Best option by quality tier, ties broken by distance. Returns a reason string
-// that only states facts we have (rating + whether it's also the closest).
-function topPick(
-	centres: Centre[],
-): { centre: Centre; reason: string; isClosest: boolean } | null {
-	if (!centres.length) return null;
-	const byQuality = [...centres].sort((a, b) => {
-		const t = tierRank(b.overall_rating) - tierRank(a.overall_rating);
-		if (t !== 0) return t;
-		return (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity);
-	});
-	const pick = byQuality[0];
-	const closest = centres.reduce((a, b) =>
-		(a.distance_km ?? Infinity) <= (b.distance_km ?? Infinity) ? a : b,
-	);
-	const isClosest = pick === closest;
-	const bits: string[] = [];
-	if (pick.overall_rating) bits.push(`rated ${pick.overall_rating}`);
-	if (isClosest && pick.distance_km != null)
-		bits.push(`closest at ${pick.distance_km} km`);
-	else if (pick.distance_km != null) bits.push(`${pick.distance_km} km away`);
-	return { centre: pick, reason: bits.join(" · "), isClosest };
+// A superlative tag for a standout centre. Honest, derived facts only: NQS tier
+// (the one real quality signal we hold) and distance.
+type CentreBadge = { label: string; tone: "teal" | "sun" | "neutral" };
+
+// Assign at most one superlative badge to each centre in a result set. If a
+// single centre is BOTH the highest-rated and the closest it's the clear
+// "Top pick"; otherwise the best-rated and the nearest are tagged separately.
+// Computed over whichever subset is displayed, so a tag always lands on a
+// visible row.
+function centreBadges(centres: Centre[]): Map<Centre, CentreBadge> {
+	const out = new Map<Centre, CentreBadge>();
+	if (!centres.length) return out;
+
+	const rated = centres.filter((c) => c.overall_rating);
+	const highest = rated.length
+		? [...rated].sort((a, b) => {
+				const t =
+					tierRank(b.overall_rating) - tierRank(a.overall_rating);
+				if (t !== 0) return t;
+				return (
+					(a.distance_km ?? Infinity) - (b.distance_km ?? Infinity)
+				);
+			})[0]
+		: null;
+
+	const withDist = centres.filter((c) => c.distance_km != null);
+	const closest = withDist.length
+		? withDist.reduce((a, b) =>
+				(a.distance_km as number) <= (b.distance_km as number) ? a : b,
+			)
+		: null;
+
+	if (highest && highest === closest) {
+		out.set(highest, { label: "Top pick", tone: "teal" });
+	} else {
+		if (highest) out.set(highest, { label: "Highest rated", tone: "sun" });
+		if (closest && !out.has(closest))
+			out.set(closest, { label: "Closest", tone: "neutral" });
+	}
+	return out;
 }
 
 // Cross-cutting facts about the result set — all derived, never invented.
-function keyNotes(centres: Centre[], pickName: string): string[] {
+function keyNotes(centres: Centre[]): string[] {
 	const notes: string[] = [];
 	const rated = centres.filter((c) => c.overall_rating);
 	if (rated.length) {
@@ -168,17 +182,6 @@ function keyNotes(centres: Centre[], pickName: string): string[] {
 				? `All ${rated.length} rated Meeting NQS or above`
 				: `${meetingPlus} of ${rated.length} rated Meeting NQS or above`,
 		);
-	}
-	const withDist = centres.filter((c) => c.distance_km != null);
-	if (withDist.length) {
-		const closest = withDist.reduce((a, b) =>
-			(a.distance_km as number) <= (b.distance_km as number) ? a : b,
-		);
-		// Skip if the top pick already is the closest (avoids repeating the name).
-		if (closest.service_name !== pickName)
-			notes.push(
-				`Closest is ${closest.service_name} (${closest.distance_km} km)`,
-			);
 	}
 	const places = centres
 		.map((c) => c.places)
@@ -196,66 +199,33 @@ function keyNotes(centres: Centre[], pickName: string): string[] {
 }
 
 function AnswerSynthesis({ centres }: { centres: Centre[] }) {
-	const pick = topPick(centres);
-	const notes = keyNotes(centres, pick?.centre.service_name ?? "");
-	if (!pick && !notes.length) return null;
+	const notes = keyNotes(centres);
+	if (!notes.length) return null;
 	return (
-		<div className="flex flex-col gap-2.5">
-			{pick && (
-				<div
-					className="flex items-start gap-2.5 px-3.25 py-2.75 bg-teal-50 rounded-lg"
-					// color-mix border off the teal brand — kept inline.
-					style={{
-						border: "1px solid color-mix(in srgb, var(--teal-500) 22%, transparent)",
-					}}
+		<div className="flex flex-wrap gap-1.75">
+			{notes.map((n, i) => (
+				<span
+					key={i}
+					className="text-xs font-medium text-body bg-secondary rounded-full px-2.5 py-1"
 				>
-					<span className="text-teal-600 mt-0.5 flex-none inline-flex">
-						<Icon
-							name="sparkles"
-							size={15}
-						/>
-					</span>
-					<span className="text-[13.5px] leading-[1.45] text-body">
-						<strong className="text-foreground font-semibold">
-							Top pick: {pick.centre.service_name}
-						</strong>
-						{pick.reason && <> — {pick.reason}</>}
-					</span>
-				</div>
-			)}
-			{notes.length > 0 && (
-				<div className="flex flex-wrap gap-1.75">
-					{notes.map((n, i) => (
-						<span
-							key={i}
-							className="text-xs font-medium text-body bg-secondary rounded-full px-2.5 py-1"
-						>
-							{n}
-						</span>
-					))}
-				</div>
-			)}
+					{n}
+				</span>
+			))}
 		</div>
 	);
 }
 
 function FloatingCard({ centre }: { centre: Centre }) {
 	return (
-		<div className="bg-card border border-border rounded-lg shadow-md px-3 py-2.5 w-52.5 flex flex-col gap-1.5">
-			<div className="text-[13.5px] font-semibold text-foreground leading-[1.3]">
+		<div className="bg-card border border-border rounded-lg shadow-md px-3 py-2.5 w-full flex flex-col gap-1.5">
+			<div className="text-[13.5px] font-semibold text-foreground leading-[1.3] truncate">
 				{centre.service_name}
 			</div>
-			<div className="flex items-center gap-2 flex-wrap">
-				<RatingBadge
-					rating={centre.overall_rating}
-					className="text-[11px] px-2 py-0.75"
-				/>
-				{centre.distance_km != null && (
-					<span className="text-xs text-muted-foreground">
-						{centre.distance_km} km
-					</span>
-				)}
-			</div>
+			{fullAddress(centre) && (
+				<div className="text-xs text-muted-foreground leading-[1.35] truncate">
+					{fullAddress(centre)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -277,16 +247,31 @@ function fullAddress(c: Centre): string | null {
 // CentreSpec — a scannable, labelled detail table for a top-ranked centre.
 // Every row is real ACECQA spine data; we deliberately don't show fees / star
 // reviews / live vacancies (unbuilt Tier-2 enrichment), so the table never lies.
-function CentreSpec({ centre, rank }: { centre: Centre; rank: number }) {
+function CentreSpec({
+	centre,
+	rank,
+	badge,
+}: {
+	centre: Centre;
+	rank: number;
+	badge?: CentreBadge;
+}) {
 	const rows: { label: string; value: ReactNode }[] = [];
 	const addr = fullAddress(centre);
 	const hours = summariseHours(centre.operating_hours);
+	rows.push({
+		label: "Rating",
+		value: <RatingBadge rating={centre.overall_rating} />,
+	});
 	if (addr) rows.push({ label: "Address", value: addr });
+	if (centre.service_type)
+		rows.push({ label: "Type", value: centre.service_type });
 	if (hours) rows.push({ label: "Hours", value: hours });
-	if (centre.distance_km != null)
-		rows.push({ label: "Distance", value: `${centre.distance_km} km away` });
 	if (centre.places != null)
-		rows.push({ label: "Places", value: `${centre.places} approved places` });
+		rows.push({
+			label: "Places",
+			value: `${centre.places} approved places`,
+		});
 	if (centre.phone)
 		rows.push({
 			label: "Phone",
@@ -312,7 +297,14 @@ function CentreSpec({ centre, rank }: { centre: Centre; rank: number }) {
 				>
 					{centre.service_name}
 				</a>
-				<RatingBadge rating={centre.overall_rating} />
+				{badge && (
+					<Tag
+						tone={badge.tone}
+						className="flex-none px-2 py-0.5 text-[11px]"
+					>
+						{badge.label}
+					</Tag>
+				)}
 			</div>
 			<div className="flex flex-col">
 				{rows.map((r, i) => (
@@ -336,79 +328,25 @@ function CentreSpec({ centre, rank }: { centre: Centre; rank: number }) {
 	);
 }
 
-// CompactRow — the slim one-line result used for the tail beyond the top 3.
-function CompactRow({
-	centre,
-	rank,
-	first,
-}: {
-	centre: Centre;
-	rank: number;
-	first: boolean;
-}) {
-	const hours = summariseHours(centre.operating_hours);
-	return (
-		<div className={cn("flex items-center bg-card", !first && "border-t")}>
-			<a
-				href={centre.id ? `/centre/${centre.id}` : centre.maps_link}
-				className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 no-underline"
-			>
-				<span className="flex-none w-6 h-6 rounded-full bg-teal-50 text-teal-700 text-[12.5px] font-semibold inline-flex items-center justify-center font-mono">
-					{rank}
-				</span>
-				<span className="flex-1 min-w-0">
-					<span className="block text-[14.5px] font-semibold text-foreground">
-						{centre.service_name}
-					</span>
-					<span className="block text-[12.5px] text-muted-foreground">
-						{[
-							centre.suburb,
-							centre.distance_km != null
-								? `${centre.distance_km} km`
-								: null,
-							hours,
-						]
-							.filter(Boolean)
-							.join(" · ")}
-					</span>
-				</span>
-			</a>
-			<div className="flex-none flex items-center gap-2.5 pr-3.5">
-				{centre.phone && (
-					<a
-						href={`tel:${centre.phone}`}
-						title={`Call ${centre.service_name}`}
-						className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-teal-700 no-underline whitespace-nowrap"
-					>
-						<Icon
-							name="phone"
-							size={13}
-						/>
-						<span className="hidden sm:inline">{centre.phone}</span>
-					</a>
-				)}
-				<RatingBadge rating={centre.overall_rating} />
-			</div>
-		</div>
-	);
-}
-
 function AnswerTurn({
 	text,
 	centres,
 	loc,
 	streaming,
+	onSeeMore,
 }: {
 	text: string;
 	centres: Centre[];
 	loc: Loc | null;
 	streaming: boolean;
+	onSeeMore: () => void;
 }) {
 	// Load the message text first, then reveal the map/cards — so results stream
 	// in after the intro rather than flashing in before it.
 	const ready = !streaming || text.length > 0;
 	const points = mapPoints(centres, loc);
-	const floating = centres.slice(0, 2);
+	const shown = centres.slice(0, 3);
+	const badges = centreBadges(shown);
 
 	return (
 		<div className="flex flex-col gap-3.5">
@@ -429,15 +367,46 @@ function AnswerTurn({
 			{ready && points.length > 0 && (
 				<MapPreview
 					points={points}
-					height={220}
+					center={loc}
+					height={380}
 				>
-					<div className="absolute top-3 right-3 flex flex-col gap-2 z-3 max-w-[60%]">
-						{floating.map((c, i) => (
-							<FloatingCard
+					{/* Desktop: vertical column of cards floating top-right. */}
+					<div className="hidden sm:flex absolute top-3 right-3 bottom-3 z-3 w-64 flex-col gap-2">
+						<div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 pr-0.5">
+							{shown.map((c, i) => (
+								<FloatingCard
+									key={i}
+									centre={c}
+								/>
+							))}
+						</div>
+						<button
+							onClick={onSeeMore}
+							className="flex-none flex items-center justify-center gap-2 bg-card border border-border rounded-lg shadow-md px-3 py-2.5 text-[13px] font-semibold text-foreground"
+						>
+							See more places <span aria-hidden>→</span>
+						</button>
+					</div>
+
+					{/* Mobile: bottom-docked, horizontally-swipeable place cards (the
+					    competitor's "invisible carousel"): cards snap and the next
+					    one peeks off-edge, with a round arrow at the end for more. */}
+					<div className="sm:hidden absolute inset-x-0 bottom-0 z-3 flex items-center gap-2.5 overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-pl-4 pl-4 pr-3 pb-3 [-webkit-overflow-scrolling:touch]">
+						{shown.map((c, i) => (
+							<div
 								key={i}
-								centre={c}
-							/>
+								className="snap-start shrink-0 w-[78%] max-w-65"
+							>
+								<FloatingCard centre={c} />
+							</div>
 						))}
+						<button
+							onClick={onSeeMore}
+							aria-label="See more places"
+							className="snap-start shrink-0 flex items-center justify-center w-11 h-11 rounded-full bg-card border border-border shadow-md text-[17px] font-semibold text-foreground"
+						>
+							<span aria-hidden>→</span>
+						</button>
 					</div>
 				</MapPreview>
 			)}
@@ -452,26 +421,15 @@ function AnswerTurn({
 						Best near {loc?.label ?? "you"}
 					</h4>
 					<div className="flex flex-col gap-3">
-						{centres.slice(0, 3).map((c, i) => (
+						{shown.map((c, i) => (
 							<CentreSpec
 								key={i}
 								centre={c}
 								rank={i + 1}
+								badge={badges.get(c)}
 							/>
 						))}
 					</div>
-					{centres.length > 3 && (
-						<div className="flex flex-col rounded-lg overflow-hidden border mt-3">
-							{centres.slice(3).map((c, i) => (
-								<CompactRow
-									key={i}
-									centre={c}
-									rank={i + 4}
-									first={i === 0}
-								/>
-							))}
-						</div>
-					)}
 				</div>
 			)}
 
@@ -554,21 +512,19 @@ export function ChatView({
 	const showThinking = busy && !lastAssistantText;
 
 	return (
-		<div className="flex-1 min-h-0 flex flex-col w-full">
+		<div className="w-full">
 			{/* Tabs bar */}
-			<div className="max-w-190 mx-auto px-6 w-full pt-2.5">
+			<div className="max-w-190 mx-auto px-4 sm:px-6 w-full pt-2.5">
 				<ConversationTabs
 					active={tab}
 					placesCount={lastCentres.length || null}
 					onSelect={onSelectTab}
 					onNewSearch={onNewSearch}
 				/>
-			</div>
 
-			{tab === "answer" || lastCentres.length === 0 ? (
-				<>
-					<ChatContainerRoot className="relative min-h-0 flex-1">
-						<ChatContainerContent className="max-w-190 mx-auto px-6 w-full py-6">
+				{tab === "answer" || lastCentres.length === 0 ? (
+					<div className="w-full">
+						<div className="flex flex-col max-w-190 mx-auto w-full pt-6 pb-6">
 							<div className="flex flex-col gap-7">
 								{messages.map((m, i) => {
 									const isLast = i === messages.length - 1;
@@ -597,6 +553,9 @@ export function ChatView({
 												centres={centres}
 												loc={loc}
 												streaming={isLast && busy}
+												onSeeMore={() =>
+													onSelectTab("places")
+												}
 											/>
 										</div>
 									);
@@ -640,90 +599,104 @@ export function ChatView({
 									onSelect={onAsk}
 								/>
 							)}
-						</ChatContainerContent>
-
-						<div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-							<ScrollButton />
 						</div>
-					</ChatContainerRoot>
 
-					{/* Pinned composer */}
-					<div className="bg-background">
-						<div className="max-w-190 mx-auto px-6 w-full pt-3 pb-4">
-							<ChatComposer
-								size="md"
-								placeholder="Ask a follow-up…"
-								value={input}
-								onChange={onInput}
-								onSubmit={onAsk}
-								disabled={busy}
-								models={models}
-								model={model}
-								onModelChange={onModelChange}
-								location={lastLoc?.label}
-							/>
-						</div>
-					</div>
-				</>
-			) : (
-				<div className="flex-1 min-h-0 overflow-y-auto">
-					<div className="max-w-275 mx-auto px-6 w-full py-6">
-						<h2 className="text-xl font-semibold text-foreground mb-1">
-							Place results
-						</h2>
-						{lastQuery && (
-							<p className="text-sm text-muted-foreground mb-5">
-								For:{" "}
-								<span className="text-body">{lastQuery}</span>
-							</p>
-						)}
-						{lastCentres.length === 0 ? (
-							<p className="text-muted-foreground">
-								No places to show yet. Ask a question on the
-								Answer tab first.
-							</p>
-						) : (
-							<div className="ds-places-layout">
-								<div className="sticky top-0 self-start">
-									<MapPreview
-										points={mapPoints(lastCentres, lastLoc)}
-										height={460}
-										showLabels
-									/>
-								</div>
-								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-									{lastCentres.map((c, i) => (
-										<PlaceResultCard
-											key={i}
-											name={c.service_name}
-											suburb={c.suburb ?? ""}
-											distance={
-												c.distance_km != null
-													? `${c.distance_km} km`
-													: ""
-											}
-											rating={nqsStar(c.overall_rating)}
-											reviews={(i + 3) * 19}
-											placesNow={
-												c.places != null
-													? `${c.places} approved places`
-													: null
-											}
-											phone={c.phone}
-											seed={i}
-											href={
-												c.id
-													? `/centre/${c.id}`
-													: undefined
-											}
-										/>
-									))}
-								</div>
+						{/* Floating composer — a detached card that HOVERS over the
+					    transcript (no full-width footer strip): the transcript
+					    scrolls underneath it. The wrapper is click-through so
+					    scroll/clicks pass through the margins; only the card
+					    itself captures input. */}
+						<div className="pointer-events-none sticky inset-x-0 bottom-0 pb-4">
+							<div className="pointer-events-auto rounded-xl shadow-lg">
+								<ChatComposer
+									size="md"
+									placeholder="Ask a follow-up…"
+									value={input}
+									onChange={onInput}
+									onSubmit={onAsk}
+									disabled={busy}
+									models={models}
+									model={model}
+									onModelChange={onModelChange}
+									location={lastLoc?.label}
+								/>
 							</div>
-						)}
+						</div>
 					</div>
-				</div>
-			)}
+				) : (
+					<div className="flex-1 min-h-0 overflow-y-auto">
+						<div className="w-full px-4 sm:px-6 py-6">
+							<p className="text-sm text-muted-foreground mb-5">
+								Place results
+								{lastQuery && (
+									<>
+										{" for: "}
+										<span className="text-body">
+											{lastQuery}
+										</span>
+									</>
+								)}
+							</p>
+							{lastCentres.length === 0 ? (
+								<p className="text-muted-foreground">
+									No places to show yet. Ask a question on the
+									Answer tab first.
+								</p>
+							) : (
+								<div className="ds-places-layout">
+									<div className="grid gap-4 self-start justify-start grid-cols-1 min-[480px]:grid-cols-[repeat(auto-fill,minmax(220px,240px))]">
+										{lastCentres.map((c, i) => (
+											<PlaceResultCard
+												key={i}
+												name={c.service_name}
+												suburb={c.suburb ?? ""}
+												address={
+													[
+														c.service_address,
+														c.suburb,
+														c.state,
+														c.postcode,
+													]
+														.filter(Boolean)
+														.join(", ") || null
+												}
+												verified={false}
+												rating={nqsStar(
+													c.overall_rating,
+												)}
+												reviews={(i + 3) * 19}
+												placesNow={
+													c.places != null
+														? `${c.places} approved places`
+														: null
+												}
+												phone={c.phone}
+												seed={i}
+												href={
+													c.id
+														? `/centre/${c.id}`
+														: undefined
+												}
+											/>
+										))}
+									</div>
+									<div className="sticky top-6 self-start hidden min-[1000px]:block">
+										<MapPreview
+											points={mapPoints(
+												lastCentres,
+												lastLoc,
+											)}
+											center={lastLoc}
+											height="calc(100dvh - 160px)"
+											showLabels
+										/>
+									</div>
+								</div>
+							)}
+						</div>
+					</div>
+				)}
+			</div>
 		</div>
 	);
 }

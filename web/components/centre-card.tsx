@@ -13,6 +13,7 @@ export type Centre = {
 	phone: string | null;
 	operating_hours: OperatingHours | null;
 	places: number | null;
+	service_type?: string | null;
 	latitude?: number | null;
 	longitude?: number | null;
 	distance_km: number | null;

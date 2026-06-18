@@ -319,7 +319,7 @@ select,
 .ds-container {
 	max-width: var(--container-max, 1200px);
 	margin-inline: auto;
-	padding-inline: 24px;
+	padding-inline: 16px;
 	width: 100%;
 }
 .ds-prose {
@@ -345,6 +345,9 @@ select,
 }
 
 @media (min-width: 640px) {
+	.ds-container {
+		padding-inline: 24px;
+	}
 	.ds-grid-4 {
 		grid-template-columns: repeat(2, 1fr);
 	}
@@ -393,15 +396,15 @@ select,
 		grid-template-columns: minmax(0, 1fr) 340px;
 	}
 }
-/* Places-tab map + results split. */
+/* Places-tab split: result cards on the left, sticky map on the right. */
 .ds-places-layout {
 	display: grid;
 	grid-template-columns: 1fr;
-	gap: 20px;
+	gap: 24px;
 }
-@media (min-width: 900px) {
+@media (min-width: 1000px) {
 	.ds-places-layout {
-		grid-template-columns: 360px minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1fr) 40%;
 	}
 }
 .ds-detail-layout {
@@ -461,6 +464,16 @@ select,
 	background: var(--secondary);
 	padding: 0.1em 0.35em;
 	border-radius: var(--radius-sm);
+}
+
+/* Hide the scrollbar but keep horizontal swipe/scroll — used by the map's
+   bottom place-card carousel so the "invisible carousel" reads cleanly. */
+.no-scrollbar {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+	display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

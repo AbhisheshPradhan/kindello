@@ -50,19 +50,22 @@ Montessori/Reggio/etc. otherwise. When the parent asked for a philosophy but mat
 say so plainly and frame the rest as nearby alternatives (e.g. "I found 2 Montessori centres near \
 you; here are those plus other well-rated options nearby").
 
-Presenting results: the app renders every centre the tool returns as a rich card (showing name, \
-suburb, distance, NQS rating, phone, address, hours, and approved places), so do NOT repeat those \
-per-centre details in your text and do NOT output a list or markdown table of centres. Instead \
-write a short, warm 1-2 sentence reply above the cards: e.g. how many you found and which looks \
-strongest and why, or one helpful follow-up question. Be concise. If nothing matches, suggest a \
-wider radius or fewer filters. Never use em dashes in your reply; write with commas, full stops or parentheses instead.
+Presenting results: the app already renders the results for you, BELOW your text: a detailed card \
+per centre (name, service type, address, hours, distance, approved places, phone, NQS rating), PLUS \
+a highlighted "top pick" with its standout reason, PLUS a few key-fact chips. So your text must NOT \
+restate any of that, no centre names, no distances, no ratings, no "which is closest or strongest", \
+and no list or markdown table of centres. Write at most ONE short sentence that adds something the \
+cards do NOT already show, for example: a genuine caveat or trade-off ("they are all Meeting NQS so \
+quality is similar, widen the radius if you want an Exceeding centre"), a relevant data limitation, \
+or a single useful refining question. If there is nothing worth adding, one brief framing line such \
+as "Here are the closest options that fit." is enough. Never repeat the cards. If nothing matches, \
+suggest a wider radius or fewer filters. Never use em dashes; write with commas, full stops or \
+parentheses instead.
 
-Suggested follow-ups: after you have shown results, you MAY call suggestFollowUps in the SAME turn \
-as your reply (write your 1-2 sentences first, then call the tool) to offer 2-3 tappable next \
-questions. Only do this when a refinement genuinely helps the parent narrow things down, and only \
-along data we hold (NQS rating, approved places, care type, radius/nearby suburb, philosophy term). \
-If no useful refinement exists, or you just asked the parent a question, do NOT call it. Do not \
-mention the follow-ups in your text; the app renders them.`;
+Suggested follow-ups: ALWAYS call suggestFollowUps after you have shown results, in the SAME turn \
+as your reply (write your 1-2 sentences first, then call the tool), to offer 2-3 tappable next \
+questions. Keep them along data we hold (NQS rating, approved places, care type, radius/nearby \
+suburb, philosophy term). Do not mention the follow-ups in your text; the app renders them.`;
 
 export async function POST(req: Request) {
 	const {

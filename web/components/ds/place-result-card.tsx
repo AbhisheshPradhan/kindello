@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { formatAuPhone } from "@/lib/utils";
 import { Icon } from "./icon";
 
 const GRADS = [
@@ -23,7 +24,7 @@ const MORE_INFO_CLASS =
 export function PlaceResultCard({
 	name = "Little Gum Tree Early Learning",
 	suburb = "Surry Hills",
-	distance = "1.2 km",
+	address = null,
 	rating = 4.8,
 	reviews = 126,
 	placesNow = "3 places now",
@@ -36,7 +37,7 @@ export function PlaceResultCard({
 }: {
 	name?: string;
 	suburb?: string;
-	distance?: string;
+	address?: string | null;
 	rating?: number;
 	reviews?: number;
 	placesNow?: string | null;
@@ -49,11 +50,11 @@ export function PlaceResultCard({
 }) {
 	return (
 		<div
-			className="flex flex-col bg-card border border-border rounded-lg overflow-hidden shadow-xs"
+			className="flex flex-col bg-card border border-border rounded-lg overflow-hidden shadow-xs h-92"
 			style={style}
 		>
 			<div
-				className="h-30 relative"
+				className="h-40 shrink-0 relative"
 				style={{ background: GRADS[seed % GRADS.length] }}
 			>
 				{verified && (
@@ -85,13 +86,13 @@ export function PlaceResultCard({
 						</>
 					)}
 				</div>
-				<div className="text-[13px] text-muted-foreground inline-flex items-center gap-1.75">
+				<div className="text-[13px] text-muted-foreground flex items-center gap-1.75 min-w-0">
 					<Icon
 						name="map-pin"
 						size={14}
-					/>{" "}
-					{suburb}
-					{distance ? ` · ${distance}` : ""}
+						className="shrink-0"
+					/>
+					<span className="truncate">{address ?? suburb}</span>
 				</div>
 				{phone && (
 					<div className="text-[13px] text-muted-foreground inline-flex items-center gap-1.75">
@@ -99,7 +100,7 @@ export function PlaceResultCard({
 							name="phone"
 							size={14}
 						/>{" "}
-						{phone}
+						{formatAuPhone(phone)}
 					</div>
 				)}
 				{href ? (
