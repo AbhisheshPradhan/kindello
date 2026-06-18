@@ -125,7 +125,9 @@ export default function MapboxMap({
 
 			// One reused popup — clicking a pin opens its card; clicking another moves it.
 			const popup = new mapboxgl.Popup({
-				offset: 24,
+				// Clear the SELECTED pin (~44px tall) so the card sits above it and its
+				// tip meets the pin head instead of overlapping the larger open-state pin.
+				offset: 44,
 				closeButton: true,
 				closeOnClick: true,
 				maxWidth: "280px",
