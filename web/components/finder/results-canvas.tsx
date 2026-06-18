@@ -8,10 +8,7 @@ import { PlaceResultCard } from "@/components/ds/place-result-card";
 import type { Centre } from "@/components/centre-card";
 import { summariseHours } from "@/lib/format";
 import type { Facets, SearchResult } from "@/lib/search-core";
-import {
-	MAX_RADIUS_KM,
-	type SearchState,
-} from "@/lib/search-state";
+import type { SearchState } from "@/lib/search-state";
 
 // Representative star anchored to the real NQS tier (Google reviews are Tier-2 enrichment
 // we haven't loaded — the NQS badge is the actual signal; the star is just a visual proxy).
@@ -138,9 +135,6 @@ export function ResultsCanvas({
 	}
 
 	const centres = result?.centres ?? [];
-	const thin = !loading && centres.length > 0 && centres.length <= 2;
-	const empty = !loading && centres.length === 0;
-	const canWiden = state.radiusKm < MAX_RADIUS_KM;
 
 	const points = centres
 		.filter((c) => c.latitude != null && c.longitude != null)
@@ -170,37 +164,6 @@ export function ResultsCanvas({
 				)}
 				<ViewToggle view={view} onView={onView} />
 			</div>
-
-			{/* Widen / loosen affordance — never leave the parent on a near-empty screen. */}
-			{(thin || empty) && (
-				<div className="rounded-lg border border-border bg-secondary/40 px-3.5 py-3 text-[13.5px] flex flex-wrap items-center gap-2">
-					<span className="text-body">
-						{empty
-							? "No centres match these filters here."
-							: `Only ${centres.length} match — want to widen the net?`}
-					</span>
-					{canWiden && (
-						<button
-							type="button"
-							onClick={() =>
-								onChange({ radiusKm: Math.min(state.radiusKm * 2, MAX_RADIUS_KM) })
-							}
-							className="rounded-full bg-teal-500 text-white px-3 py-1 text-[12.5px] font-semibold"
-						>
-							Widen to {Math.min(state.radiusKm * 2, MAX_RADIUS_KM)} km
-						</button>
-					)}
-					{state.minRating && (
-						<button
-							type="button"
-							onClick={() => onChange({ minRating: null })}
-							className="rounded-full border border-border bg-card px-3 py-1 text-[12.5px] font-semibold"
-						>
-							Drop the rating filter
-						</button>
-					)}
-				</div>
-			)}
 
 			{view === "map" ? (
 				// Map-first (realestate.com.au style): the map fills the canvas; cards are
