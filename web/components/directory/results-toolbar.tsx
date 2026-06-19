@@ -100,7 +100,7 @@ export function ResultsToolbar({
 
 	return (
 		<div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border">
-			<div className="mx-auto max-w-6xl px-4 sm:px-6 py-3 flex flex-wrap items-center gap-2.5">
+			<div className="w-full px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center gap-2.5">
 				{/* Location search */}
 				<div className="relative flex-1 min-w-55 max-w-90">
 					<div className="flex items-center gap-1.5 rounded-full border border-border bg-card pl-3 pr-1 py-1 focus-within:border-teal-300">

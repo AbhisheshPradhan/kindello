@@ -131,10 +131,10 @@ export function SuburbDirectory({
 			/>
 
 			<main className="flex-1">
-				<div className="mx-auto max-w-7xl px-4 sm:px-6">
-					<div className="grid lg:grid-cols-[1fr_minmax(380px,42%)] gap-6">
+				<div className="w-full">
+					<div className="grid lg:grid-cols-[1fr_minmax(420px,46%)]">
 						{/* Left: the scrolling content + list (primary, SEO). */}
-						<div className="min-w-0 py-6">
+						<div className="min-w-0 py-6 px-4 sm:px-6 lg:pl-8 lg:pr-6">
 							<nav className="text-[12.5px] text-muted-foreground mb-4 flex items-center gap-1.5 flex-wrap">
 								<Link href="/" className="hover:text-teal-700">
 									Home
@@ -226,13 +226,14 @@ export function SuburbDirectory({
 							)}
 						</div>
 
-						{/* Right: the big map — sticky, fills the viewport beside the list. */}
+						{/* Right: the big map — sticky, full-height, flush to the viewport edge. */}
 						<div className="hidden lg:block">
-							<div className="sticky top-[60px] h-[calc(100dvh-76px)] py-6">
+							<div className="sticky top-[60px] h-[calc(100dvh-60px)]">
 								<MapPreview
 									points={points}
 									center={data.center}
 									height="100%"
+									rounded="0"
 									interactive
 								/>
 							</div>
