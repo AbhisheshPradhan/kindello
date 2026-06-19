@@ -18,6 +18,14 @@ export type MapPoint = {
 // A map viewport expressed as a centre + covering radius (km) — emitted for "Search this area".
 export type MapRegion = { lat: number; lng: number; radiusKm: number };
 
+// What the Finder map asks the canvas to offer after a user pan/zoom:
+//  - "search":  zoomed in enough — offer "Search this area" for this viewport.
+//  - "zoom-in": zoomed out past the search floor — offer "Zoom in to search" instead.
+// (null clears the prompt: a tiny nudge that isn't worth a re-search.)
+export type AreaPrompt =
+	| ({ kind: "search" } & MapRegion)
+	| { kind: "zoom-in" };
+
 /**
  * Real map (Mapbox GL) — lazy-loaded so mapbox-gl + its CSS only ship when a
  * token is present. `ssr: false` because mapbox-gl touches `window`.
@@ -78,6 +86,7 @@ export function MapPreview({
 	showLabels = false,
 	interactive = false,
 	onRegionChange,
+	zoomInTick,
 	children,
 	style,
 }: {
@@ -93,8 +102,10 @@ export function MapPreview({
 	showLabels?: boolean;
 	/** Opt-in (Finder): pin states + click-to-open PinCard popup + visited tracking. */
 	interactive?: boolean;
-	/** Opt-in (Finder): emits the map region on user pan/zoom for "Search this area". */
-	onRegionChange?: (region: MapRegion | null) => void;
+	/** Opt-in (Finder): emits the area prompt on user pan/zoom (search vs zoom-in vs none). */
+	onRegionChange?: (prompt: AreaPrompt | null) => void;
+	/** Opt-in (Finder): bump to ease the map back to the search-floor zoom and re-emit a search. */
+	zoomInTick?: number;
 	/** Floating overlay (e.g. result cards in the Answer preview). */
 	children?: ReactNode;
 	style?: CSSProperties;
@@ -122,6 +133,7 @@ export function MapPreview({
 					center={center}
 					interactive={interactive}
 					onRegionChange={onRegionChange}
+					zoomInTick={zoomInTick}
 				/>
 			) : (
 				<MapPlaceholder

@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { useTheme } from "next-themes";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { type MapPoint, type MapRegion } from "./map-preview";
+import { type MapPoint, type MapRegion, type AreaPrompt } from "./map-preview";
 import { pinSvg, type PinState } from "./rating-pin";
 import { PinCard } from "@/components/finder/pin-card";
 
@@ -21,9 +21,17 @@ function isValid(p: MapPoint) {
 	return Number.isFinite(p.lat) && Number.isFinite(p.lng);
 }
 
-// Radius the Finder clamps "Search this area" to (km) — beyond this zoom-out we don't
-// offer an area search (childcare is local; searching half a state is meaningless).
+// Safety clamp on the radius we report for "Search this area" (km) — childcare is local,
+// so never query half a state even if the bounds somehow run wide.
 const MAX_AREA_RADIUS_KM = 30;
+
+// The "default zoom" floor for searching. Below it the area is too broad to search
+// meaningfully, so we prompt "Zoom in to search" instead of offering an area search.
+// (The result fit lands ~13-15, so this floor only bites when the user zooms out past it.)
+const MIN_SEARCH_ZOOM = 12.5;
+
+// Hard zoom-out limit: a little context is fine, zooming out to uselessness is not.
+const MIN_MAP_ZOOM = 10;
 
 function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
 	const R = 6371;
@@ -63,6 +71,19 @@ function persistViewed(viewed: Set<string>) {
 
 type GlMap = import("mapbox-gl").Map;
 type Mapboxgl = typeof import("mapbox-gl").default;
+
+// The current viewport as a centre + covering radius (centre -> NE corner), clamped.
+function regionFromMap(map: GlMap): MapRegion {
+	const c = map.getCenter();
+	const b = map.getBounds();
+	const ne = b?.getNorthEast();
+	const r = ne ? haversineKm(c.lat, c.lng, ne.lat, ne.lng) : 0;
+	return {
+		lat: c.lat,
+		lng: c.lng,
+		radiusKm: Math.max(1, Math.min(MAX_AREA_RADIUS_KM, Math.round(r))),
+	};
+}
 
 // Fit the view to the points: symmetric bounds about the anchor (so the searched suburb
 // stays dead-centre and no outlier is clipped), else fit the raw pin cluster.
@@ -113,13 +134,16 @@ export default function MapboxMap({
 	center,
 	interactive = false,
 	onRegionChange,
+	zoomInTick,
 }: {
 	points?: MapPoint[];
 	center?: { lat: number; lng: number } | null;
 	/** Finder opt-in: pin hover/selected/visited states + click-to-open PinCard popup. */
 	interactive?: boolean;
-	/** Finder opt-in: emits the map region on user pan/zoom for "Search this area" (null = hide). */
-	onRegionChange?: (region: MapRegion | null) => void;
+	/** Finder opt-in: emits the area prompt on user pan/zoom (search / zoom-in / null). */
+	onRegionChange?: (prompt: AreaPrompt | null) => void;
+	/** Finder opt-in: bump to ease back to the search-floor zoom and re-emit a search. */
+	zoomInTick?: number;
 }) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const { resolvedTheme } = useTheme();
@@ -199,6 +223,7 @@ export default function MapboxMap({
 						? [valid[0].lng, valid[0].lat]
 						: [151.2093, -33.8688], // Sydney fallback
 				zoom: 11,
+				minZoom: MIN_MAP_ZOOM,
 			});
 			mapRef.current = map;
 
@@ -261,39 +286,31 @@ export default function MapboxMap({
 			}
 
 			if (onRegionChangeRef.current) {
-				const viewportRadiusKm = () => {
-					const b = map.getBounds();
-					if (!b) return 0;
-					const c = map.getCenter();
-					const ne = b.getNorthEast();
-					return haversineKm(c.lat, c.lng, ne.lat, ne.lng);
-				};
 				map.on("moveend", (e) => {
 					if (!e.originalEvent) return; // ignore programmatic fit/setCenter
-					const r = viewportRadiusKm();
-					if (r > MAX_AREA_RADIUS_KM) {
-						onRegionChangeRef.current?.(null); // too zoomed out — don't offer
+					// Below the search floor the area is too broad — prompt to zoom in instead.
+					if (map.getZoom() < MIN_SEARCH_ZOOM) {
+						onRegionChangeRef.current?.({ kind: "zoom-in" });
 						return;
 					}
-					const c = map.getCenter();
+					const region = regionFromMap(map);
 					const moved = haversineKm(
 						baseCenterRef.current.lat,
 						baseCenterRef.current.lng,
-						c.lat,
-						c.lng,
+						region.lat,
+						region.lng,
 					);
 					const zoomChanged =
 						baseRadiusRef.current > 0 &&
-						Math.abs(r - baseRadiusRef.current) / baseRadiusRef.current > 0.25;
-					if (moved < r * 0.3 && !zoomChanged) {
+						Math.abs(region.radiusKm - baseRadiusRef.current) /
+							baseRadiusRef.current >
+							0.25;
+					// Tiny nudge that didn't really move or rezoom — don't pester with a prompt.
+					if (moved < region.radiusKm * 0.3 && !zoomChanged) {
 						onRegionChangeRef.current?.(null);
 						return;
 					}
-					onRegionChangeRef.current?.({
-						lat: c.lat,
-						lng: c.lng,
-						radiusKm: Math.max(1, Math.min(MAX_AREA_RADIUS_KM, Math.round(r))),
-					});
+					onRegionChangeRef.current?.({ kind: "search", ...region });
 				});
 			}
 
@@ -331,6 +348,20 @@ export default function MapboxMap({
 			/* style not ready yet — style.load handler covers the initial set */
 		}
 	}, [resolvedTheme, ready]);
+
+	// ---- "Zoom in to search" tap: ease to the search floor, then run a search there ----
+	// Bumping `zoomInTick` (from the canvas pill) eases the camera in on the current centre
+	// and, once it settles, emits a one-shot `search` prompt so the canvas can re-query
+	// without the user having to also click "Search this area".
+	useEffect(() => {
+		const map = mapRef.current;
+		if (!ready || !map || !zoomInTick) return;
+		const c = map.getCenter();
+		map.easeTo({ center: c, zoom: MIN_SEARCH_ZOOM, duration: 500 });
+		map.once("moveend", () => {
+			onRegionChangeRef.current?.({ kind: "search", ...regionFromMap(map) });
+		});
+	}, [zoomInTick, ready]);
 
 	// ---- swap markers when the points change (NO map teardown = no flicker) ----
 	useEffect(() => {

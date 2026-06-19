@@ -145,7 +145,7 @@ export function DirectorySearchHero() {
 					{careOpen && (
 						<ul
 							role="listbox"
-							className="absolute z-30 left-0 top-[calc(100%+0.65rem)] w-full sm:w-64 rounded-xl border border-border bg-card shadow-lg overflow-hidden py-1"
+							className="absolute z-30 left-0 top-[calc(100%+0.2rem)] w-full sm:w-64 rounded-xl border border-border bg-card shadow-lg overflow-hidden py-1"
 						>
 							{CARE_OPTIONS.map((o) => (
 								<li key={o.value} role="option" aria-selected={careType === o.value}>
@@ -191,7 +191,7 @@ export function DirectorySearchHero() {
 						onFocus={() => suggestions.length > 0 && setOpen(true)}
 						onBlur={() => setTimeout(() => setOpen(false), 120)}
 						placeholder="Enter your suburb or postcode"
-						className="flex-1 min-w-0 bg-transparent text-[16px] px-2.5 py-2 focus:outline-none placeholder:text-muted-foreground"
+						className="flex-1 min-w-0 bg-transparent text-[16px] px-2.5 py-5 sm:py-2 focus:outline-none placeholder:text-muted-foreground"
 						aria-label="Search by suburb or postcode"
 						autoComplete="off"
 					/>

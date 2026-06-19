@@ -49,25 +49,31 @@ async function newPage(browser) {
   await page.authenticate({ username: browser.__proxy.username, password: browser.__proxy.password });
   await page.setRequestInterception(true);
   page.on("request", (req) => (["image", "stylesheet", "font", "media"].includes(req.resourceType()) ? req.abort() : req.continue()));
-  await page.setDefaultNavigationTimeout(25000);
+  await page.setDefaultNavigationTimeout(15000);
   return page;
 }
 
+// DuckDuckGo HTML is far more scrape-tolerant than Bing, so quality holds under
+// high concurrency. Result links are redirects (…/l/?uddg=<real-url>); decode them.
+function ddgReal(href) {
+  try { const u = new URL(href, "https://duckduckgo.com"); const r = u.searchParams.get("uddg"); return r ? decodeURIComponent(r) : href; }
+  catch { return href; }
+}
 async function discover(browser, name, suburb, state) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const page = await newPage(browser);
     try {
       const q = encodeURIComponent(`${name} ${suburb} ${state} childcare`);
-      await page.goto(`https://www.bing.com/search?q=${q}`, { waitUntil: "domcontentloaded" });
-      const cites = await page.evaluate(() => Array.from(document.querySelectorAll(".b_algo cite")).map((c) => c.innerText));
-      for (const cite of cites) {
-        const url = cite.split(/[›»]/)[0].trim();
+      await page.goto(`https://html.duckduckgo.com/html/?q=${q}`, { waitUntil: "domcontentloaded" });
+      const hrefs = await page.evaluate(() => Array.from(document.querySelectorAll("a.result__a")).map((a) => a.getAttribute("href")));
+      for (const href of hrefs) {
+        const url = ddgReal(href);
         if (!/^https?:\/\//.test(url) || BLOCK.test(url)) continue;
         try { return new URL(url).origin; } catch { /* skip */ }
       }
-      if (cites.length > 0) return null;
+      if (hrefs.length > 0) return null;   // had results, none qualified -> genuine miss
     } catch { /* retry */ } finally { await page.close().catch(() => {}); }
-    await sleep(1500);
+    await sleep(1200);
   }
   return null;
 }

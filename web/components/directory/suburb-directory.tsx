@@ -2,13 +2,12 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/ds/site-header";
 import { SiteFooter } from "@/components/ds/site-footer";
 import { MapPreview, type MapPoint } from "@/components/ds/map-preview";
-import { PlaceResultCard } from "@/components/ds/place-result-card";
 import { Icon } from "@/components/ds/icon";
 import { ResultsToolbar } from "./results-toolbar";
+import { CentreListCard } from "./centre-list-card";
 import { summariseHours } from "@/lib/format";
 import {
 	CARE_TYPES,
-	centrePath,
 	stateName,
 	type CareTypeSlug,
 	type SuburbLink,
@@ -177,26 +176,9 @@ export function SuburbDirectory({
 
 							<h2 className="sr-only">{typeLabel} services in {suburbName}</h2>
 							{centres.length > 0 ? (
-								<div className="mt-6 grid gap-4 grid-cols-1 min-[480px]:grid-cols-[repeat(auto-fill,minmax(230px,1fr))]">
+								<div className="mt-6 grid gap-4 grid-cols-1 sm:grid-cols-2">
 									{centres.map((c) => (
-										<PlaceResultCard
-											key={c.id}
-											name={c.name}
-											suburb={c.suburb ?? ""}
-											address={
-												[c.address, c.suburb, c.state, c.postcode]
-													.filter(Boolean)
-													.join(", ") || null
-											}
-											verified={false}
-											nqsRating={c.rating}
-											rating={c.stars}
-											reviews={c.reviews}
-											placesNow={c.places != null ? `${c.places} approved places` : null}
-											phone={c.phone}
-											seed={c.seed}
-											href={centrePath(c)}
-										/>
+										<CentreListCard key={c.id} centre={c} />
 									))}
 								</div>
 							) : (

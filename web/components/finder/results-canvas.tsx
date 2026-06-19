@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Icon } from "@/components/ds/icon";
-import { MapPreview, type MapRegion } from "@/components/ds/map-preview";
+import {
+	MapPreview,
+	type AreaPrompt,
+	type MapRegion,
+} from "@/components/ds/map-preview";
 import { PlaceResultCard } from "@/components/ds/place-result-card";
 import type { Centre } from "@/components/centre-card";
 import { summariseHours } from "@/lib/format";
@@ -112,11 +116,17 @@ export function ResultsCanvas({
 	onChange: (delta: Partial<SearchState>) => void;
 	onSearchArea: (region: MapRegion) => void;
 }) {
-	// "Search this area" prompt — set when the user pans/zooms the map off the search view.
-	const [pendingArea, setPendingArea] = useState<MapRegion | null>(null);
+	// Area prompt — set when the user pans/zooms the map off the search view. Either
+	// "search" (zoomed in enough) or "zoom-in" (zoomed out past the search floor).
+	const [areaPrompt, setAreaPrompt] = useState<AreaPrompt | null>(null);
+	// Bumped to ask the map to ease back to the floor zoom (the "Zoom in to search" tap).
+	const [zoomInTick, setZoomInTick] = useState(0);
+	// True between a "Zoom in to search" tap and the map's follow-up search emission, so we
+	// run that search automatically instead of showing a second "Search this area" pill.
+	const awaitingZoomInSearch = useRef(false);
 	// A fresh search (new centre/results) supersedes any pending pan prompt.
 	useEffect(() => {
-		setPendingArea(null);
+		setAreaPrompt(null);
 	}, [result]);
 
 	// No anchor yet — invite a filter-first OR chat-first start.
@@ -174,19 +184,44 @@ export function ResultsCanvas({
 						center={result?.center}
 						height="100%"
 						interactive
-						onRegionChange={setPendingArea}
+						zoomInTick={zoomInTick}
+						onRegionChange={(prompt) => {
+							// A search emitted right after a "Zoom in to search" tap: run it now,
+							// don't make the user click "Search this area" too.
+							if (prompt?.kind === "search" && awaitingZoomInSearch.current) {
+								awaitingZoomInSearch.current = false;
+								setAreaPrompt(null);
+								onSearchArea(prompt);
+								return;
+							}
+							setAreaPrompt(prompt);
+						}}
 					/>
-					{pendingArea && (
+					{areaPrompt?.kind === "search" && (
 						<button
 							type="button"
 							onClick={() => {
-								onSearchArea(pendingArea);
-								setPendingArea(null);
+								onSearchArea(areaPrompt);
+								setAreaPrompt(null);
 							}}
 							className="absolute top-3 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-2 rounded-full bg-card border border-border shadow-lg px-4 py-2 text-[13.5px] font-semibold text-teal-700 hover:bg-teal-50"
 						>
 							<Icon name="search" size={15} />
 							Search this area
+						</button>
+					)}
+					{areaPrompt?.kind === "zoom-in" && (
+						<button
+							type="button"
+							onClick={() => {
+								awaitingZoomInSearch.current = true;
+								setZoomInTick((t) => t + 1);
+								setAreaPrompt(null);
+							}}
+							className="absolute top-3 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-2 rounded-full bg-card border border-border shadow-lg px-4 py-2 text-[13.5px] font-semibold text-teal-700 hover:bg-teal-50"
+						>
+							<Icon name="search" size={15} />
+							Zoom in to search
 						</button>
 					)}
 				</div>
