@@ -31,15 +31,14 @@ export default async function SuburbPage({
 	searchParams,
 }: {
 	params: Params;
-	searchParams: Promise<{ rating?: string; sort?: string }>;
+	searchParams: Promise<{ rating?: string }>;
 }) {
 	const { place, postcode } = await params;
-	const { rating, sort } = await searchParams;
+	const { rating } = await searchParams;
 	const data = await getSuburbPage({
 		suburb: place,
 		postcode,
 		minRating: rating,
-		sort: sort as "rating" | "places" | "name" | undefined,
 	});
 	if (!data) notFound();
 	const nearby = data.center
@@ -51,7 +50,6 @@ export default async function SuburbPage({
 			nearby={nearby}
 			suburbSlug={place}
 			rating={rating ?? ""}
-			sort={sort ?? "rating"}
 		/>
 	);
 }

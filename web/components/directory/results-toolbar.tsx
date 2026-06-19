@@ -20,11 +20,6 @@ const RATING_OPTIONS: { value: string; label: string }[] = [
 	{ value: "Exceeding NQS", label: "Exceeding NQS & above" },
 	{ value: "Excellent", label: "Excellent only" },
 ];
-const SORT_OPTIONS: { value: string; label: string }[] = [
-	{ value: "rating", label: "Top rated" },
-	{ value: "places", label: "Most places" },
-	{ value: "name", label: "By name" },
-];
 
 type Suggestion = {
 	suburb: string;
@@ -40,24 +35,31 @@ type Suggestion = {
 export function ResultsToolbar({
 	suburbSlug,
 	postcode,
+	state,
+	suburbName,
 	careType,
 	rating,
-	sort,
 }: {
 	suburbSlug: string;
 	postcode: string;
+	state: string;
+	suburbName: string;
 	careType: string; // "" = all
 	rating: string; // "" = any
-	sort: string; // "rating" default
 }) {
 	const router = useRouter();
-	const [q, setQ] = useState("");
+	// Prefill with the suburb currently shown so the field isn't blank; clear it on
+	// first user edit (focus selects all so typing overwrites the prefill).
+	const currentLabel = [suburbName, state, postcode].filter(Boolean).join(" ");
+	const [q, setQ] = useState(currentLabel);
 	const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
 	const [open, setOpen] = useState(false);
+	const touched = useRef(false);
 	const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 	const abort = useRef<AbortController | undefined>(undefined);
 
 	useEffect(() => {
+		if (!touched.current) return; // don't autocomplete the prefilled suburb
 		const t = q.trim();
 		if (t.length < 3) {
 			setSuggestions([]);
@@ -88,12 +90,10 @@ export function ResultsToolbar({
 		? `/${careType}/${suburbSlug}/${postcode}`
 		: `/childcare/${suburbSlug}/${postcode}`;
 
-	function push(path: string, next: { rating?: string; sort?: string }) {
+	function push(path: string, next: { rating?: string }) {
 		const r = next.rating !== undefined ? next.rating : rating;
-		const s = next.sort !== undefined ? next.sort : sort;
 		const sp = new URLSearchParams();
 		if (r) sp.set("rating", r);
-		if (s && s !== "rating") sp.set("sort", s);
 		const qs = sp.toString();
 		router.push(qs ? `${path}?${qs}` : path);
 	}
@@ -107,8 +107,14 @@ export function ResultsToolbar({
 						<Icon name="map-pin" size={15} className="text-teal-500 shrink-0" />
 						<input
 							value={q}
-							onChange={(e) => setQ(e.target.value)}
-							onFocus={() => suggestions.length > 0 && setOpen(true)}
+							onChange={(e) => {
+								touched.current = true;
+								setQ(e.target.value);
+							}}
+							onFocus={(e) => {
+								e.target.select();
+								if (suggestions.length > 0) setOpen(true);
+							}}
 							onBlur={() => setTimeout(() => setOpen(false), 120)}
 							placeholder="Search another suburb or postcode"
 							className="flex-1 min-w-0 bg-transparent text-[14px] py-1 focus:outline-none placeholder:text-muted-foreground"
@@ -166,12 +172,6 @@ export function ResultsToolbar({
 						value={rating}
 						options={RATING_OPTIONS}
 						onChange={(v) => push(basePath, { rating: v })}
-					/>
-					<Pill
-						label="Sort"
-						value={sort}
-						options={SORT_OPTIONS}
-						onChange={(v) => push(basePath, { sort: v })}
 					/>
 				</div>
 			</div>

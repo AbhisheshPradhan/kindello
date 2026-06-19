@@ -41,17 +41,16 @@ export default async function CareTypePage({
 	searchParams,
 }: {
 	params: Params;
-	searchParams: Promise<{ rating?: string; sort?: string }>;
+	searchParams: Promise<{ rating?: string }>;
 }) {
 	const { careType, suburb, postcode } = await params;
 	if (!isCareTypeSlug(careType)) notFound();
-	const { rating, sort } = await searchParams;
+	const { rating } = await searchParams;
 	const data = await getSuburbPage({
 		suburb,
 		postcode,
 		careType,
 		minRating: rating,
-		sort: sort as "rating" | "places" | "name" | undefined,
 	});
 	if (!data) notFound();
 	const nearby = data.center
@@ -63,7 +62,6 @@ export default async function CareTypePage({
 			nearby={nearby}
 			suburbSlug={suburb}
 			rating={rating ?? ""}
-			sort={sort ?? "rating"}
 		/>
 	);
 }

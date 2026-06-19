@@ -654,6 +654,70 @@ export async function getSuburbPage(opts: {
 	};
 }
 
+// "Search this area" on the suburb-page map: centres within a radius of an arbitrary
+// map centre (not a suburb boundary). Same DirectoryCentre shape + stats as getSuburbPage
+// so the client can swap the list/map in place. Rating filter only narrows the LIST (stats
+// stay over the whole area, mirroring getSuburbPage).
+export type AreaResult = {
+	centres: DirectoryCentre[];
+	stats: SuburbStats;
+	center: { lat: number; lng: number };
+};
+
+export async function getAreaCentres(opts: {
+	lat: number;
+	lng: number;
+	radiusKm: number;
+	careType?: CareTypeSlug | null;
+	minRating?: string | null;
+	sort?: SortKey;
+	limit?: number;
+}): Promise<AreaResult> {
+	const params: unknown[] = [opts.lng, opts.lat, opts.radiusKm * 1000];
+	const where = [
+		"geog IS NOT NULL",
+		"ST_DWithin(geog, ST_MakePoint($1,$2)::geography, $3)",
+	];
+	if (opts.careType) where.push(CARE_TYPES[opts.careType].predicate);
+	// Stats span the whole area; the rating filter only narrows the displayed list.
+	const statsWhere = where.slice();
+	if (
+		opts.minRating &&
+		(RATING_ORDER as readonly string[]).includes(opts.minRating)
+	) {
+		const allowed = RATING_ORDER.slice(
+			RATING_ORDER.indexOf(opts.minRating as (typeof RATING_ORDER)[number]),
+		);
+		params.push(allowed);
+		where.push(`overall_rating = ANY($${params.length})`);
+	}
+	const orderBy =
+		opts.sort === "places"
+			? "number_of_approved_places DESC NULLS LAST, service_name"
+			: opts.sort === "name"
+				? "service_name"
+				: `${RATING_RANK_SQL}, service_name`;
+	params.push(opts.limit ?? 60);
+	const limIdx = params.length;
+
+	const [listRes, statsRes] = await Promise.all([
+		pool.query<Row>(
+			`SELECT ${SELECT} FROM services WHERE ${where.join(" AND ")} ORDER BY ${orderBy} LIMIT $${limIdx}`,
+			params,
+		),
+		// Stats query takes only [lng, lat, radius] — the care-type predicate is inline SQL.
+		pool.query<Row>(
+			`SELECT ${SELECT} FROM services WHERE ${statsWhere.join(" AND ")}`,
+			params.slice(0, 3),
+		),
+	]);
+	return {
+		centres: listRes.rows.map(toCentre),
+		stats: computeStats(statsRes.rows.map(toCentre)),
+		center: { lat: opts.lat, lng: opts.lng },
+	};
+}
+
 export type SuburbLink = {
 	suburb: string;
 	slug: string;
