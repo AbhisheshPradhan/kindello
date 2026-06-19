@@ -470,9 +470,14 @@ export function distanceKm(
 export type CareTypeSlug =
 	| "long-day-care"
 	| "preschool"
-	| "oshc"
+	| "before-school-care"
+	| "after-school-care"
+	| "vacation-care"
 	| "family-day-care";
 
+// Mirrors ACECQA's granular service-attribute flags as individual care types (matching the
+// competitor): OSHC is split into before / after / vacation care, each a real parent intent
+// and its own landing-page namespace.
 export const CARE_TYPES: Record<
 	CareTypeSlug,
 	{ label: string; plural: string; predicate: string }
@@ -483,15 +488,24 @@ export const CARE_TYPES: Record<
 		predicate: "is_long_day_care",
 	},
 	preschool: {
-		label: "Preschool",
-		plural: "Preschools",
+		label: "Preschool & kindergarten",
+		plural: "Preschools & kindergartens",
 		predicate: "(is_preschool_stand_alone OR is_preschool_part_of_school)",
 	},
-	oshc: {
-		label: "Outside school hours care",
-		plural: "OSHC services",
-		predicate:
-			"(is_oshc_before_school OR is_oshc_after_school OR is_oshc_vacation_care)",
+	"before-school-care": {
+		label: "Before school care",
+		plural: "Before school care services",
+		predicate: "is_oshc_before_school",
+	},
+	"after-school-care": {
+		label: "After school care",
+		plural: "After school care services",
+		predicate: "is_oshc_after_school",
+	},
+	"vacation-care": {
+		label: "Vacation care",
+		plural: "Vacation care programs",
+		predicate: "is_oshc_vacation_care",
 	},
 	"family-day-care": {
 		label: "Family day care",
@@ -527,7 +541,7 @@ export type SuburbStats = {
 	meetingPlus: number;
 	notRated: number;
 	totalPlaces: number;
-	byCare: { ldc: number; preschool: number; oshc: number; fdc: number };
+	byCare: Record<CareTypeSlug, number>; // count per care-type slug
 };
 
 function computeStats(centres: DirectoryCentre[]): SuburbStats {
@@ -537,7 +551,14 @@ function computeStats(centres: DirectoryCentre[]): SuburbStats {
 		meetingPlus: 0,
 		notRated: 0,
 		totalPlaces: 0,
-		byCare: { ldc: 0, preschool: 0, oshc: 0, fdc: 0 },
+		byCare: {
+			"long-day-care": 0,
+			preschool: 0,
+			"before-school-care": 0,
+			"after-school-care": 0,
+			"vacation-care": 0,
+			"family-day-care": 0,
+		},
 	};
 	for (const c of centres) {
 		const r = c.rating;
@@ -546,12 +567,13 @@ function computeStats(centres: DirectoryCentre[]): SuburbStats {
 			s.meetingPlus++;
 		if (!r) s.notRated++;
 		if (c.places) s.totalPlaces += c.places;
-		if (c.flags.ldc) s.byCare.ldc++;
+		if (c.flags.ldc) s.byCare["long-day-care"]++;
 		if (c.flags.preschoolStandalone || c.flags.preschoolSchool)
 			s.byCare.preschool++;
-		if (c.flags.oshcBefore || c.flags.oshcAfter || c.flags.oshcVacation)
-			s.byCare.oshc++;
-		if (c.flags.familyDayCare) s.byCare.fdc++;
+		if (c.flags.oshcBefore) s.byCare["before-school-care"]++;
+		if (c.flags.oshcAfter) s.byCare["after-school-care"]++;
+		if (c.flags.oshcVacation) s.byCare["vacation-care"]++;
+		if (c.flags.familyDayCare) s.byCare["family-day-care"]++;
 	}
 	return s;
 }
@@ -758,13 +780,11 @@ export async function resolvePlace(
 
 // Sitemap inputs: every suburb+postcode with centres, and which care types exist there
 // (so we emit only landing pages that have content — no empty/doorway URLs).
+// care-type slug -> which suburbs have it (so the sitemap only emits pages that exist).
 export type SitemapSuburb = {
 	slug: string;
 	postcode: string;
-	ldc: boolean;
-	preschool: boolean;
-	oshc: boolean;
-	fdc: boolean;
+	careTypes: CareTypeSlug[];
 };
 export async function getSitemapSuburbs(): Promise<SitemapSuburb[]> {
 	const { rows } = await pool.query<{
@@ -772,25 +792,31 @@ export async function getSitemapSuburbs(): Promise<SitemapSuburb[]> {
 		postcode: string;
 		ldc: boolean;
 		preschool: boolean;
-		oshc: boolean;
+		bsc: boolean;
+		aft: boolean;
+		vac: boolean;
 		fdc: boolean;
 	}>(
 		`SELECT suburb, postcode,
             bool_or(is_long_day_care) ldc,
             bool_or(is_preschool_stand_alone OR is_preschool_part_of_school) preschool,
-            bool_or(is_oshc_before_school OR is_oshc_after_school OR is_oshc_vacation_care) oshc,
+            bool_or(is_oshc_before_school) bsc,
+            bool_or(is_oshc_after_school) aft,
+            bool_or(is_oshc_vacation_care) vac,
             bool_or(service_type = 'Family Day Care') fdc
      FROM services WHERE suburb IS NOT NULL AND postcode IS NOT NULL
      GROUP BY suburb, postcode`,
 	);
-	return rows.map((r) => ({
-		slug: suburbSlug(r.suburb),
-		postcode: r.postcode,
-		ldc: r.ldc,
-		preschool: r.preschool,
-		oshc: r.oshc,
-		fdc: r.fdc,
-	}));
+	return rows.map((r) => {
+		const careTypes: CareTypeSlug[] = [];
+		if (r.ldc) careTypes.push("long-day-care");
+		if (r.preschool) careTypes.push("preschool");
+		if (r.bsc) careTypes.push("before-school-care");
+		if (r.aft) careTypes.push("after-school-care");
+		if (r.vac) careTypes.push("vacation-care");
+		if (r.fdc) careTypes.push("family-day-care");
+		return { slug: suburbSlug(r.suburb), postcode: r.postcode, careTypes };
+	});
 }
 
 export async function getStates(): Promise<string[]> {

@@ -8,8 +8,10 @@ import { Icon } from "@/components/ds/icon";
 const CARE_OPTIONS: { value: string; label: string }[] = [
 	{ value: "", label: "All care types" },
 	{ value: "long-day-care", label: "Long day care" },
-	{ value: "preschool", label: "Preschool" },
-	{ value: "oshc", label: "Outside school hours care" },
+	{ value: "preschool", label: "Preschool & kindergarten" },
+	{ value: "before-school-care", label: "Before school care" },
+	{ value: "after-school-care", label: "After school care" },
+	{ value: "vacation-care", label: "Vacation care" },
 	{ value: "family-day-care", label: "Family day care" },
 ];
 

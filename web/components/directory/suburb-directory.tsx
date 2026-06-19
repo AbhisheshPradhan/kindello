@@ -37,22 +37,12 @@ function CareLinks({
 			n: data.stats.total,
 			active: data.careType === null,
 		},
-		...(Object.keys(CARE_TYPES) as CareTypeSlug[]).map((slug) => {
-			const n =
-				slug === "long-day-care"
-					? data.stats.byCare.ldc
-					: slug === "preschool"
-						? data.stats.byCare.preschool
-						: slug === "oshc"
-							? data.stats.byCare.oshc
-							: data.stats.byCare.fdc;
-			return {
-				href: `/${slug}/${base}`,
-				label: CARE_TYPES[slug].label,
-				n,
-				active: data.careType === slug,
-			};
-		}),
+		...(Object.keys(CARE_TYPES) as CareTypeSlug[]).map((slug) => ({
+			href: `/${slug}/${base}`,
+			label: CARE_TYPES[slug].label,
+			n: data.stats.byCare[slug],
+			active: data.careType === slug,
+		})),
 	].filter((i) => i.n > 0);
 
 	return (

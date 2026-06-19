@@ -22,13 +22,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 	}
 	for (const s of subs) {
 		urls.push({ url: `${BASE}/childcare/${s.slug}/${s.postcode}`, priority: 0.7 });
-		if (s.ldc)
-			urls.push({ url: `${BASE}/long-day-care/${s.slug}/${s.postcode}` });
-		if (s.preschool)
-			urls.push({ url: `${BASE}/preschool/${s.slug}/${s.postcode}` });
-		if (s.oshc) urls.push({ url: `${BASE}/oshc/${s.slug}/${s.postcode}` });
-		if (s.fdc)
-			urls.push({ url: `${BASE}/family-day-care/${s.slug}/${s.postcode}` });
+		for (const ct of s.careTypes) {
+			urls.push({ url: `${BASE}/${ct}/${s.slug}/${s.postcode}` });
+		}
 	}
 	return urls;
 }
