@@ -39,11 +39,16 @@ async function discover(browser, proxy, [, name, suburb, state]) {
   try {
     const q = encodeURIComponent(`${name} ${suburb} ${state} childcare`);
     await page.goto(`https://www.bing.com/search?q=${q}`, { waitUntil: "domcontentloaded", timeout: 25000 });
-    const links = await page.evaluate(() =>
-      Array.from(document.querySelectorAll("#b_results h2 a, #b_results .b_algo a")).map((a) => a.href)
+    // Bing wraps result <a href> in ck/a redirects; the true URL is in each .b_algo <cite>.
+    const cites = await page.evaluate(() =>
+      Array.from(document.querySelectorAll(".b_algo cite")).map((c) => c.innerText)
     );
-    const cand = links.find((h) => /^https?:\/\//.test(h) && !BLOCK.test(h));
-    return cand ? new URL(cand).origin : null;
+    for (const cite of cites) {
+      const url = cite.split(/[›»]/)[0].trim();           // strip breadcrumb
+      if (!/^https?:\/\//.test(url) || BLOCK.test(url)) continue;
+      try { return new URL(url).origin; } catch { /* skip malformed */ }
+    }
+    return null;
   } catch (e) {
     return `ERR:${e.message.slice(0, 30)}`;
   } finally {
