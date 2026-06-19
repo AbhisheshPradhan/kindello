@@ -2,14 +2,18 @@
 
 Build order, scoped so each phase is useful even at small scale and ships before the next begins.
 
+> **Pivot DONE (2026-06):** AI chat search → traditional directory. The directory is now the
+> live consumer product; the AI chat finder is parked at `/finder` (see "Pivot" section below,
+> now settled). Project-wide framing is in the repo-root `CLAUDE.md`.
+
 ## Phase 1 — Directory core
 
-- [ ] Clean, deduped centre table keyed on **ACECQA service ID** (foundation everything joins to)
-- [ ] Fuzzy-match each centre to a Google `place_id` with a confidence score; manual review for low-confidence matches
-- [ ] Google Places as a **live display layer** (ratings, photos, hours, popular times) — respect ToS, attribute, don't warehouse what you can't store
-- [ ] Centre detail pages + map/list UI
-- [ ] SEO foundation: structured data (Schema.org `LocalBusiness`/childcare), clean IA, fast Core Web Vitals, mobile-friendly
-- [ ] Capacity-based scarcity from NQF approved-places data (free; powers suburb-level SEO content)
+- [x] Clean centre table keyed on **ACECQA service ID** (the spine; everything joins to it)
+- [x] **Centre detail pages + suburb/care-type list+map UI** — server-rendered `/childcare/{suburb}/{postcode}`, `/{careType}/{suburb}/{postcode}`, `/centre/{id}`; Mapbox list+map, **radius-based** results (anchor on suburb centroid, ~5km, cap 50), **"Search this area" / "Zoom in to search" → "Map Area"** (deterministic `/api/directory-area`)
+- [~] SEO foundation: `generateMetadata`, `robots.txt`, `sitemap.xml`, canonical URLs in place; **still to do:** Schema.org `LocalBusiness`/childcare JSON-LD, Core Web Vitals pass
+- [~] Capacity signal from NQF approved-places data (shown on cards/detail; suburb-level SEO content still to write)
+- [ ] Fuzzy-match each centre to a Google `place_id` with a confidence score; manual review for low-confidence matches (Tier-2 enrichment)
+- [ ] Google Places as a **live display layer** (ratings, photos, hours, popular times) — respect ToS, attribute, don't warehouse what you can't store (Tier-2 enrichment)
 
 ## Phase 2 — Parent workflow
 
@@ -69,12 +73,15 @@ param that is `noindex` + canonical → base page.
 - **Layout:** list-primary — full paginated list is the hero, map is a supporting panel
   (side-by-side desktop, toggle mobile).
 
-## Pivot to classic directory — decisions (in progress)
+## Pivot to classic directory — SETTLED (2026-06)
 
-- Merge `explore/finder-hybrid-search` → `main` (search-core + map + atoms = the foundation).
-- **AI chat is parked, not deleted:** stays at `/finder`; not linked from the main flow.
-- **Homepage hero is two swappable components:** `DirectorySearchHero` (new, traditional
-  location search → routes to the suburb landing URL) and `ChatSearchHero` (the existing AI
-  chat hero, preserved for later experiments). Homepage renders the directory one.
-- Suburb/type pages reuse `lib/search-core` + `RatingTag` + `PlaceResultCard` + the map;
-  `/api/search` powers the client-side query-param refinements.
+- [x] `explore/finder-hybrid-search` merged → `main` (search-core + map + atoms = the foundation).
+- [x] **AI chat is parked, not deleted:** lives at `/finder`; not linked from the main flow.
+- [x] **Homepage hero = `DirectorySearchHero`** (traditional location search → routes to the
+  suburb landing URL). The AI `ChatSearchHero` / chat-view is preserved for later experiments
+  and the future embeddable widget.
+- [x] Suburb/type pages reuse `lib/search-core` / `lib/directory` + `RatingTag` +
+  `CentreListCard` + the shared Mapbox map; `/api/search` and `/api/directory-area` power the
+  deterministic (no-token) query path.
+- [x] Suburb pages are **radius-based by default** (not strict suburb match) and support
+  **"Search this area" → "Map Area"** re-query; see repo-root `CLAUDE.md` Status for detail.

@@ -1,6 +1,8 @@
 # Kindello
 
-A database of every approved childcare / early-childhood-education service in Australia, plus an AI finder that helps parents find the right fit. We license the cleaned, daily-synced data — as a feed, an embeddable chatbot widget, and an API — to childcare directories.
+A public **directory** of every approved childcare / early-childhood-education service in Australia (~18k centres), built on the authoritative ACECQA spine. The same cleaned, daily-synced data is the B2B asset — licensed later as a feed, an API, and an embeddable widget to other childcare directories.
+
+> **Pivot (2026-06):** the consumer product is a **traditional, location-based directory** (suburb + care-type landing pages, list + map, centre detail pages) — the model CareforKids / KindiCare use and that parents + Google expect. The earlier **AI chat finder is parked, not deleted**: it still runs at `/finder`, but it's no longer the main flow. The chat tooling (Vercel AI SDK, tool-calling search) is preserved for later experiments and for the future embeddable widget.
 
 ## Architecture
 
@@ -17,27 +19,30 @@ Two backends, one shared database. **Python** does the offline data engineering;
    └─────────────────────────┘                       ▲
                                                      │ read
    ┌─────────────────────────────────────────────────┴──────────────┐
-   │  NODE.js / TypeScript  (web/ — Next.js)                        │
+   │  NODE.js / TypeScript  (web/ — Next.js 16)                     │
    │  the APPLICATION backend + frontend, one codebase:             │
-   │   • API routes (/api/chat) = the backend                       │
-   │   • Vercel AI SDK (model calls + tools, multi-provider)        │
-   │   • the chat UI + (later) embeddable widget                    │
+   │   • Directory pages: /childcare/{suburb}/{postcode},           │
+   │     /{careType}/{suburb}/{postcode}, /centre/{id}  (SEO)       │
+   │   • /api/search + /api/directory-area = radius queries (PostGIS)│
+   │   • Mapbox list+map UI, "Search this area" / "Zoom in to search"│
+   │   • AI chat finder PARKED at /finder (/api/chat, Vercel AI SDK) │
    └────────────────────────────────────────────────────────────────┘
 ```
 
 - **Data spine** — ACECQA National Registers: every approved provider + service + NQS quality rating (18,229 services, updated daily by the regulator).
 - **Enrichment** — geocoding (done, via G-NAF); later: fees/vacancies, Google reviews/photos, philosophy/programs, ABN, vector embeddings.
-- **DB** — PostgreSQL 18 local (→ Neon in cloud, for demos/production). **PostGIS** enabled for radius search; **pgvector** to be added for chatbot embeddings.
+- **DB** — PostgreSQL 18 local (→ Neon in cloud, for demos/production). **PostGIS** enabled for radius search; **pgvector** to be added later for the parked chatbot embeddings.
 - **Ingest** — Python (`ingest/`): download → geocode → load.
-- **Web app + chatbot + B2B API** — TypeScript / Next.js (`web/`), Vercel AI SDK for provider-agnostic model calls + tool calling. UI built on **prompt-kit** (shadcn/ui + Tailwind v4) with light/dark mode.
+- **Web app** — TypeScript / Next.js 16 (`web/`): server-rendered directory pages + Mapbox map, on the design system in `web/components/ds/`. The parked AI finder reuses `/api/chat` + the Vercel AI SDK.
 
 ## Status
 
 - ✅ Spine loaded: 18,229 services + 10,737 providers
 - ✅ Geocoded 92.7% via G-NAF (free, authoritative, redistributable AU open data)
 - ✅ PostGIS radius search ("centres near me")
-- 🚧 Chatbot: Next.js + Vercel AI SDK, search tools over Postgres, model-switch dropdown; prompt-kit chat UI (dark mode, animated placeholder, centered fresh-session composer)
-- ⬜ Enrichment (Places, fees, vacancies), pgvector, embeddable widget, B2B API
+- ✅ **Directory frontend**: homepage (location search hero + browse), suburb + care-type landing pages (radius-based list + Mapbox map, "Search this area" / "Zoom in to search" → "Map Area"), centre detail pages with NQS quality areas
+- 🅿️ AI chat finder parked at `/finder` (Next.js + Vercel AI SDK, tool-calling search over Postgres)
+- ⬜ Enrichment (Places, fees, vacancies, ABN), pgvector, technical SEO polish (sitemaps/JSON-LD), embeddable widget, B2B feed/API
 
 ## Data sourcing note
 
@@ -57,10 +62,10 @@ pip install -r requirements.txt
 cp .env.example .env          # fill DATABASE_URL
 # rebuild: psql -d kindello -f schema.sql → python load.py → python geocode_gnaf.py → psql -d kindello -f gis.sql
 
-# Web app (chatbot + UI)
+# Web app (directory + parked chat)
 cd ../web
 npm install
-cp .env.example .env.local         # fill DATABASE_URL + provider API keys
+cp .env.example .env.local         # fill DATABASE_URL + NEXT_PUBLIC_MAPBOX_TOKEN (+ provider keys for /finder)
 npm run dev                          # http://localhost:3000
 ```
 

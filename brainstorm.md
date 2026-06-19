@@ -1,8 +1,10 @@
-# brainstorm.md — Kindello feature ideas
+# brainstorm.md — Kindello ideas + research log
 
-A parking lot for features to **explore when we build the MVP**. Right now the focus is the **PoC** (prove the spine + geocoding + chatbot search work end-to-end) — nothing here is committed. Drop ideas freely; we'll triage into the roadmap later.
+A parking lot for features to **explore later**, plus the research log behind the decisions. Right now the focus is **launching the consumer directory** (see `web/ROADMAP.md` for the build order and the repo-root `CLAUDE.md` for the pivot). Nothing in the "ideas" sections is committed — drop ideas freely and we triage into the roadmap. The **"Near-term — directory launch"** section at the bottom holds the concrete tasks carried over from the (now-retired) `PoC.md`.
 
-> Scope note: PoC = "does the core loop work?" (free text → location → centre results in chat). MVP = "would a directory pay to embed this?". Keep that bar in mind when promoting an idea from here.
+> **Pivot context (2026-06):** we moved from an AI-chat finder to a **traditional directory** as the launch product (chat is parked at `/finder`). So read older "chatbot is the product" framing here through that lens — most of these ideas are channel-agnostic (they apply to the directory, the parked chat, or the future widget alike).
+>
+> Scope note: **Launch** = "a parent can find the right centres on a fast, SEO-friendly directory." **Later/MVP** = "would a directory or operator pay for the data/widget?". Keep that bar in mind when promoting an idea.
 
 ## Discovery & chatbot
 
@@ -91,25 +93,42 @@ What we learned probing the data + competitors. These are the *why* behind the i
 
 **Vacancies** — **no authoritative source at all** (unlike fees); **the centre is the only source of truth**, and it decays fastest. This is *why* vacancies drive the supply-side flywheel rather than being a field to fetch.
 
-**Images / licensing** — **display rights ≠ redistribution rights.** Google Places/scraped photos are display-only (TOS, attribution, ≤30-day cache); **only owner-uploaded photos can ship in the feed we sell.** PoC answer = **Street View Static** keyed on our lat/lng.
+**Images / licensing** — **display rights ≠ redistribution rights.** Google Places/scraped photos are display-only (TOS, attribution, ≤30-day cache); **only owner-uploaded photos can ship in the feed we sell.** Launch answer = **Street View Static** keyed on our lat/lng.
 
 **Provider vs centre** — provider = legal operator, centre = physical service; **1 provider → many centres** (never many-to-many). 16 mega-operators run ~22% of centres → the wedge for both enrichment and B2B sales.
 
 **Enrichment, two kinds** — **first-party** (centre-supplied: vacancies/fees/docs — fresh, clean, *the only fully sellable* data) vs **third-party/derived** (G-NAF/Places/CCS/scrape — bootstrap, each with a licensing/freshness asterisk). Product is always a hybrid; the **first-party share is the compounding moat**, and the WhatsApp agent is how you collect it without friction.
 
-## PoC scope (NOW) — parent search only
+## Near-term — directory launch (carried over from the retired PoC.md)
 
-The PoC proves one thing: **a parent types free text → gets the right centres in chat.** Everything else above is MVP. Build/keep only:
+The directory frontend is built (suburb/care-type/centre pages, radius list+map, "Search this
+area"). These are the still-live tasks that survived the chat→directory pivot — concrete enough
+to **promote into `web/ROADMAP.md`** when picked up. The chat-PoC framing is gone; the items below
+are what actually moves the directory launch.
 
-- [x] Parent chatbot: free text → `resolveLocation` + `searchCentres` over PostGIS, results as cards (built).
-- [ ] **Cloud deploy** — Neon (Sydney) + Vercel; load data once (no daily sync — can't run on Vercel anyway, WAF blocks datacenter IPs). DB choice already decided ([[local-poc-then-cloud-for-demos]]).
-- [ ] **Free pedagogy filter (the cheap standout)** — add a name-keyword/`ILIKE` filter (Montessori/Steiner/Reggio/kinder…) to `searchCentres` **and** `ingest/search.py` in parity, so "Montessori near Carlton" actually filters today. This is the one differentiator we can ship in the PoC with data we already have.
-- [ ] **NQS plain-English explainer** on the card — hardcoded text per tier (Exceeding/Meeting/…) + the 7-area breakdown we already store. Presentation only, no enrichment.
-- [ ] **Maps-link / Street View fallback** for display (no new data; uses lat/lng we have, name-based maps link for the ungeocoded tail).
-- [ ] UI/UX polish in Claude-design style (in progress).
+- [ ] **Free pedagogy/keyword filter (the cheap standout)** — name-`ILIKE` over `service_name`
+  for Montessori/Steiner/Reggio/kinder/community/nature, exposed as a directory filter (and kept
+  in parity in `web/lib/search-core` + `ingest/search.py`). No AU directory filters on pedagogy
+  and we can ship the first layer today with data we already have (319 Montessori, 25 Steiner,
+  10 Reggio, 2,068 kinder, 828 community — high-precision, low-recall; scraping/embeddings fill
+  the recall gap later). Honesty guardrail: only claim what the name matches.
+- [ ] **NQS plain-English explainer** on the card/detail — hardcoded text per tier
+  (Exceeding/Meeting/Working Towards/SIR/Not yet assessed) + the 7-area breakdown we already
+  store. Presentation only, no enrichment. (KindiCare does this; cheap trust win.)
+- [ ] **Display fallbacks so every result looks complete** — Street View Static keyed on our
+  lat/lng → static map tile → branded placeholder; name-based **Maps link** for directions
+  (covers the ~7.3% ungeocoded tail so every centre stays clickable).
+- [ ] **Technical SEO** (now in scope post-launch-decision) — Schema.org `LocalBusiness`/childcare
+  JSON-LD, sitemaps/`robots.txt` (partly done), canonicals, Core Web Vitals.
+- [ ] **Cloud deploy** — Neon (Sydney, Postgres 18 + PostGIS) + Vercel (`web/` root); load data
+  once (no daily sync on Vercel — WAF blocks datacenter IPs; refresh from a residential-IP box).
+  DB choice decided ([[local-poc-then-cloud-for-demos]]). Runbook: [`docs/deploy.md`](docs/deploy.md).
 
-**Explicitly NOT in PoC:** fees, vacancies, photos (real), Places, scraping, pgvector, WhatsApp agent, claim portal, CRM, B2B API/widget, daily sync. All MVP.
+**Bigger bets (Later/MVP, see sections above):** fees, vacancies, real photos (Places), operator
+crawl, pgvector semantic search, WhatsApp write-agent, claim portal, CRM, B2B feed/API, embeddable
+widget (the parked chat's real home), daily ACECQA sync, auth/metering.
 
 ---
 
-_Add ideas under the nearest heading. When one's ready to commit, promote it into CLAUDE.md's Status/roadmap with a concrete next step._
+_Add ideas under the nearest heading. When one's ready to build, promote it into `web/ROADMAP.md`
+(build order) and/or `CLAUDE.md`'s Status with a concrete next step._
