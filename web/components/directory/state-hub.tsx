@@ -3,7 +3,7 @@ import { SiteHeader } from "@/components/ds/site-header";
 import { SiteFooter } from "@/components/ds/site-footer";
 import { PlaceResultCard } from "@/components/ds/place-result-card";
 import { Icon } from "@/components/ds/icon";
-import type { StateHub as StateHubData } from "@/lib/directory";
+import { centrePath, type StateHub as StateHubData } from "@/lib/directory";
 
 // State hub = a landing/navigation page (intro + browse links + top centres). NOT a
 // results+map page — that's the suburb level.
@@ -76,7 +76,7 @@ export function StateHub({ hub }: { hub: StateHubData }) {
 										placesNow={c.places != null ? `${c.places} approved places` : null}
 										phone={c.phone}
 										seed={c.seed}
-										href={`/centre/${c.id}`}
+										href={centrePath(c)}
 									/>
 								))}
 							</div>

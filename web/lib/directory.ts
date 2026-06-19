@@ -1,5 +1,9 @@
 import "server-only";
 import { pool } from "./db";
+// Pure slug helpers live in ./slugs (client-safe); used here + re-exported so existing
+// server imports from "@/lib/directory" keep working.
+import { suburbSlug, centreSlug, centrePath } from "./slugs";
+export { suburbSlug, centreSlug, centrePath };
 
 // ---------------------------------------------------------------------------
 // Server-side directory data access for the indexable surfaces (homepage
@@ -498,16 +502,6 @@ export const CARE_TYPES: Record<
 
 export function isCareTypeSlug(s: string): s is CareTypeSlug {
 	return Object.prototype.hasOwnProperty.call(CARE_TYPES, s);
-}
-
-// "Surry Hills" -> "surry-hills". Inverse (slug -> name) just swaps - for space;
-// the DB match is case-insensitive so exact punctuation isn't required.
-export function suburbSlug(name: string): string {
-	return name
-		.toLowerCase()
-		.trim()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "");
 }
 
 const STATE_NAMES: Record<string, string> = {

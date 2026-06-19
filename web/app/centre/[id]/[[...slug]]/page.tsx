@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
 import {
 	getCentreDetail,
 	getNearbyCentres,
 	distanceKm,
+	centrePath,
+	centreSlug,
 	type CentreDetail,
 } from "@/lib/directory";
 import { summariseHours, ratingLabel } from "@/lib/format";
@@ -161,10 +163,12 @@ function faqs(c: CentreDetail) {
 	];
 }
 
+type CentreParams = Promise<{ id: string; slug?: string[] }>;
+
 export async function generateMetadata({
 	params,
 }: {
-	params: Promise<{ id: string }>;
+	params: CentreParams;
 }): Promise<Metadata> {
 	const { id } = await params;
 	const c = await getCentreDetail(id);
@@ -176,7 +180,7 @@ export async function generateMetadata({
 		description: `${c.name}${place ? ` in ${place}` : ""} is rated ${ratingLabel(c.rating)} against the National Quality Standard${
 			c.places != null ? `, with ${c.places} approved places` : ""
 		}. See programs, hours, features and how to enquire.`,
-		alternates: { canonical: `/centre/${c.id}` },
+		alternates: { canonical: centrePath(c) },
 		openGraph: { title, type: "profile" },
 	};
 }
@@ -191,14 +195,14 @@ const GALLERY = [
 const SECTION_H2 = "text-[22px] font-semibold text-foreground";
 const PANEL = "border border-border rounded-xl p-4.5 bg-card shadow-xs";
 
-export default async function CentrePage({
-	params,
-}: {
-	params: Promise<{ id: string }>;
-}) {
-	const { id } = await params;
+export default async function CentrePage({ params }: { params: CentreParams }) {
+	const { id, slug } = await params;
 	const centre = await getCentreDetail(id);
 	if (!centre) notFound();
+
+	// Canonicalise: bare /centre/<id> or a stale slug 301s to /centre/<id>/<slug>.
+	const canonical = centreSlug(centre.name, centre.suburb, centre.postcode);
+	if ((slug?.[0] ?? "") !== canonical) permanentRedirect(centrePath(centre));
 
 	const [nearby] = await Promise.all([getNearbyCentres(centre, 3)]);
 	const hours = summariseHours(centre.operatingHours);

@@ -7,6 +7,7 @@ import { Icon } from "@/components/ds/icon";
 import { summariseHours } from "@/lib/format";
 import {
 	CARE_TYPES,
+	centrePath,
 	stateName,
 	type CareTypeSlug,
 	type SuburbLink,
@@ -189,7 +190,7 @@ export function SuburbDirectory({
 										placesNow={c.places != null ? `${c.places} approved places` : null}
 										phone={c.phone}
 										seed={c.seed}
-										href={`/centre/${c.id}`}
+										href={centrePath(c)}
 									/>
 								))}
 							</div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { centrePath } from "@/lib/slugs";
 import type { DirectoryCentre, CategoryCount } from "@/lib/directory";
 import { CentreCard } from "@/components/ds/centre-card";
 import { CategoryTile } from "@/components/ds/category-tile";
@@ -152,7 +153,7 @@ export function MarketingSections({
 					{popular.map((c) => (
 						<CentreCard
 							key={c.id}
-							href={`/centre/${c.id}`}
+							href={centrePath(c)}
 							name={c.name}
 							suburb={c.suburb ?? ""}
 							distance=""

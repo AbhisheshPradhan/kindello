@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { searchDirectory } from "@/lib/directory";
+import { searchDirectory, centrePath } from "@/lib/directory";
 import { SiteHeader } from "@/components/ds/site-header";
 import { SiteFooter } from "@/components/ds/site-footer";
 import { CentreCard } from "@/components/ds/centre-card";
@@ -91,7 +91,7 @@ export default async function SearchPage({
 								<div className="mb-7">
 									<CentreCard
 										featured
-										href={`/centre/${featured.id}`}
+										href={centrePath(featured)}
 										name={featured.name}
 										suburb={featured.suburb ?? ""}
 										distance=""
@@ -112,7 +112,7 @@ export default async function SearchPage({
 								{rest.map((c) => (
 									<CentreCard
 										key={c.id}
-										href={`/centre/${c.id}`}
+										href={centrePath(c)}
 										name={c.name}
 										suburb={c.suburb ?? ""}
 										distance=""
