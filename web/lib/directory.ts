@@ -755,3 +755,47 @@ export async function resolvePlace(
 	}
 	return pick(rows[0]);
 }
+
+// Sitemap inputs: every suburb+postcode with centres, and which care types exist there
+// (so we emit only landing pages that have content — no empty/doorway URLs).
+export type SitemapSuburb = {
+	slug: string;
+	postcode: string;
+	ldc: boolean;
+	preschool: boolean;
+	oshc: boolean;
+	fdc: boolean;
+};
+export async function getSitemapSuburbs(): Promise<SitemapSuburb[]> {
+	const { rows } = await pool.query<{
+		suburb: string;
+		postcode: string;
+		ldc: boolean;
+		preschool: boolean;
+		oshc: boolean;
+		fdc: boolean;
+	}>(
+		`SELECT suburb, postcode,
+            bool_or(is_long_day_care) ldc,
+            bool_or(is_preschool_stand_alone OR is_preschool_part_of_school) preschool,
+            bool_or(is_oshc_before_school OR is_oshc_after_school OR is_oshc_vacation_care) oshc,
+            bool_or(service_type = 'Family Day Care') fdc
+     FROM services WHERE suburb IS NOT NULL AND postcode IS NOT NULL
+     GROUP BY suburb, postcode`,
+	);
+	return rows.map((r) => ({
+		slug: suburbSlug(r.suburb),
+		postcode: r.postcode,
+		ldc: r.ldc,
+		preschool: r.preschool,
+		oshc: r.oshc,
+		fdc: r.fdc,
+	}));
+}
+
+export async function getStates(): Promise<string[]> {
+	const { rows } = await pool.query<{ state: string }>(
+		`SELECT DISTINCT state FROM services WHERE state IS NOT NULL ORDER BY state`,
+	);
+	return rows.map((r) => r.state).filter((s) => stateName(s) !== null);
+}
