@@ -117,24 +117,52 @@ export function DirectorySearchHero() {
 
 				<span className="w-px h-6 bg-border mx-1 shrink-0" />
 
-				<Icon name="map-pin" size={18} className="text-teal-500 shrink-0 ml-2" />
-				<input
-					value={q}
-					onChange={(e) => {
-						setQ(e.target.value);
-						setErr("");
-					}}
-					onKeyDown={(e) => {
-						if (e.key === "Enter") submit();
-						if (e.key === "Escape") setOpen(false);
-					}}
-					onFocus={() => suggestions.length > 0 && setOpen(true)}
-					onBlur={() => setTimeout(() => setOpen(false), 120)}
-					placeholder="Suburb or postcode, e.g. Parramatta or 2150"
-					className="flex-1 min-w-0 bg-transparent text-[16px] px-2.5 py-2 focus:outline-none placeholder:text-muted-foreground"
-					aria-label="Search by suburb or postcode"
-					autoComplete="off"
-				/>
+				{/* Location field — the autocomplete dropdown is anchored here, so it sits
+				    below the location only (not the whole bar). */}
+				<div className="relative flex-1 flex items-center min-w-0">
+					<Icon name="map-pin" size={18} className="text-teal-500 shrink-0 ml-2" />
+					<input
+						value={q}
+						onChange={(e) => {
+							setQ(e.target.value);
+							setErr("");
+						}}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") submit();
+							if (e.key === "Escape") setOpen(false);
+						}}
+						onFocus={() => suggestions.length > 0 && setOpen(true)}
+						onBlur={() => setTimeout(() => setOpen(false), 120)}
+						placeholder="Suburb or postcode, e.g. Parramatta or 2150"
+						className="flex-1 min-w-0 bg-transparent text-[16px] px-2.5 py-2 focus:outline-none placeholder:text-muted-foreground"
+						aria-label="Search by suburb or postcode"
+						autoComplete="off"
+					/>
+					{open && suggestions.length > 0 && (
+						<ul className="absolute z-20 left-0 right-0 top-[calc(100%+0.9rem)] rounded-xl border border-border bg-card shadow-lg overflow-hidden">
+							{suggestions.map((s) => (
+								<li key={`${s.slug}-${s.postcode}`}>
+									<button
+										type="button"
+										// onMouseDown fires before the input's onBlur closes the list.
+										onMouseDown={() => go(s)}
+										className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-secondary"
+									>
+										<Icon name="map-pin" size={15} className="text-muted-foreground shrink-0" />
+										<span className="text-[15px] text-foreground">{s.suburb}</span>
+										<span className="text-[13px] text-muted-foreground">
+											{s.state} {s.postcode}
+										</span>
+										<span className="ml-auto text-[12.5px] text-muted-foreground">
+											{s.count} {s.count === 1 ? "centre" : "centres"}
+										</span>
+									</button>
+								</li>
+							))}
+						</ul>
+					)}
+				</div>
+
 				<button
 					type="button"
 					onClick={submit}
@@ -145,31 +173,6 @@ export function DirectorySearchHero() {
 					{busy ? "…" : "Search"}
 				</button>
 			</div>
-
-			{/* Autocomplete dropdown */}
-			{open && suggestions.length > 0 && (
-				<ul className="absolute z-20 left-0 right-0 mt-2 rounded-xl border border-border bg-card shadow-lg overflow-hidden">
-					{suggestions.map((s) => (
-						<li key={`${s.slug}-${s.postcode}`}>
-							<button
-								type="button"
-								// onMouseDown fires before the input's onBlur closes the list.
-								onMouseDown={() => go(s)}
-								className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-secondary"
-							>
-								<Icon name="map-pin" size={15} className="text-muted-foreground shrink-0" />
-								<span className="text-[15px] text-foreground">{s.suburb}</span>
-								<span className="text-[13px] text-muted-foreground">
-									{s.state} {s.postcode}
-								</span>
-								<span className="ml-auto text-[12.5px] text-muted-foreground">
-									{s.count} {s.count === 1 ? "centre" : "centres"}
-								</span>
-							</button>
-						</li>
-					))}
-				</ul>
-			)}
 
 			{err && (
 				<p className="mt-2.5 text-[13.5px] text-rating-improve text-center">

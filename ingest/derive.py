@@ -96,6 +96,52 @@ VALUES (%s, %s)
 ON CONFLICT (provider_approval_number) DO UPDATE SET slug = EXCLUDED.slug;
 """
 
+# Provider aggregates rolled up from the spine (powers the /brands pages).
+# Pure SQL: one GROUP BY pass over services, upserted onto providers_meta.
+PROVIDER_AGGREGATES = """
+WITH base AS (
+    SELECT provider_approval_number AS pan,
+           count(*)                          AS centre_count,
+           sum(number_of_approved_places)    AS total_places
+    FROM services GROUP BY provider_approval_number
+),
+st AS (
+    SELECT pan, jsonb_agg(state ORDER BY cnt DESC) AS states FROM (
+        SELECT provider_approval_number AS pan, state, count(*) AS cnt
+        FROM services WHERE state IS NOT NULL
+        GROUP BY provider_approval_number, state
+    ) s GROUP BY pan
+),
+ct AS (
+    SELECT provider_approval_number AS pan, jsonb_agg(DISTINCT service_type) AS care_types
+    FROM services WHERE service_type IS NOT NULL
+    GROUP BY provider_approval_number
+),
+nqs AS (
+    SELECT pan, jsonb_object_agg(overall_rating, cnt) AS nqs_summary FROM (
+        SELECT provider_approval_number AS pan, overall_rating, count(*) AS cnt
+        FROM services WHERE overall_rating IS NOT NULL
+        GROUP BY provider_approval_number, overall_rating
+    ) n GROUP BY pan
+)
+INSERT INTO providers_meta
+    (provider_approval_number, centre_count, total_approved_places,
+     states, care_types, nqs_summary, aggregates_at)
+SELECT base.pan, base.centre_count, base.total_places,
+       st.states, ct.care_types, nqs.nqs_summary, now()
+FROM base
+LEFT JOIN st  ON st.pan  = base.pan
+LEFT JOIN ct  ON ct.pan  = base.pan
+LEFT JOIN nqs ON nqs.pan = base.pan
+ON CONFLICT (provider_approval_number) DO UPDATE SET
+    centre_count          = EXCLUDED.centre_count,
+    total_approved_places = EXCLUDED.total_approved_places,
+    states                = EXCLUDED.states,
+    care_types            = EXCLUDED.care_types,
+    nqs_summary           = EXCLUDED.nqs_summary,
+    aggregates_at         = now();
+"""
+
 SERVICE_COLS = (
     "service_approval_number, service_name, service_address, suburb, state, postcode, "
     "service_type, is_long_day_care, is_preschool_part_of_school, is_preschool_stand_alone, "

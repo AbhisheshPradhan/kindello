@@ -33,6 +33,14 @@ CREATE TABLE IF NOT EXISTS providers_meta (
     -- Stage 1: derivable
     slug          text,                    -- /brands/{code}/{slug}; brand name
 
+    -- Stage 1b: provider aggregates (computed from the spine — powers brand pages)
+    centre_count          integer,         -- # services under this provider
+    states                jsonb,           -- ["NSW","VIC"] distinct, ordered by count
+    total_approved_places integer,         -- sum across services
+    care_types            jsonb,           -- ["Centre-Based Care","Family Day Care"]
+    nqs_summary           jsonb,           -- {"Exceeding NQS":3,"Meeting NQS":2,...}
+    aggregates_at         timestamptz,
+
     -- Stage 3: ABR (free) — ABN is a property of the legal entity, not a centre
     abn            text,
     abn_fetched_at timestamptz,
