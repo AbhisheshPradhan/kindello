@@ -54,7 +54,7 @@ export function PlaceResultCard({
 }) {
 	return (
 		<div
-			className="flex flex-col bg-card border border-border rounded-lg overflow-hidden shadow-xs h-92"
+			className="flex flex-col bg-card border border-border rounded-lg overflow-hidden shadow-xs min-h-92 h-full"
 			style={style}
 		>
 			<div

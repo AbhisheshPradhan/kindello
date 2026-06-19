@@ -132,9 +132,9 @@ export function SuburbDirectory({
 
 			<main className="flex-1">
 				<div className="w-full">
-					<div className="grid lg:grid-cols-[1fr_minmax(420px,46%)]">
+					<div className="grid lg:grid-cols-[1fr_minmax(480px,52%)]">
 						{/* Left: the scrolling content + list (primary, SEO). */}
-						<div className="min-w-0 py-6 px-4 sm:px-6 lg:pl-8 lg:pr-6">
+						<div className="min-w-0 pt-6 pb-12 px-4 sm:px-6 lg:pl-8 lg:pr-6">
 							<nav className="text-[12.5px] text-muted-foreground mb-4 flex items-center gap-1.5 flex-wrap">
 								<Link href="/" className="hover:text-teal-700">
 									Home
@@ -177,7 +177,7 @@ export function SuburbDirectory({
 
 							<h2 className="sr-only">{typeLabel} services in {suburbName}</h2>
 							{centres.length > 0 ? (
-								<div className="mt-6 grid gap-4 grid-cols-1 min-[560px]:grid-cols-2">
+								<div className="mt-6 grid gap-4 grid-cols-1 min-[480px]:grid-cols-[repeat(auto-fill,minmax(230px,1fr))]">
 									{centres.map((c) => (
 										<PlaceResultCard
 											key={c.id}
