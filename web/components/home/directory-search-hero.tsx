@@ -32,9 +32,8 @@ export function DirectorySearchHero() {
 	const [q, setQ] = useState("");
 	const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
 	const [open, setOpen] = useState(false);
-	const [busy, setBusy] = useState(false);
-	const [err, setErr] = useState("");
-	// The suggestion the user picked (fills the input; navigation waits for Search).
+	// The suggestion the user picked from the dropdown. Search is enabled only once this is
+	// set (we require a real, valid place — no free-text guessing).
 	const [selected, setSelected] = useState<Suggestion | null>(null);
 	const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 	const abort = useRef<AbortController | undefined>(undefined);
@@ -91,24 +90,9 @@ export function DirectorySearchHero() {
 		setOpen(false);
 	}
 
-	// Search button / Enter: a picked suggestion wins, else the top match, else resolve.
-	async function submit() {
-		if (selected) return go(selected);
-		if (suggestions[0]) return go(suggestions[0]);
-		const t = q.trim();
-		if (!t || busy) return;
-		setBusy(true);
-		setErr("");
-		try {
-			const res = await fetch(`/api/resolve-place?q=${encodeURIComponent(t)}`);
-			const d = (await res.json()) as Suggestion | null;
-			if (d?.slug && d?.postcode) return go(d);
-			setErr("We couldn't find that suburb. Try a nearby suburb or postcode.");
-		} catch {
-			setErr("Something went wrong. Please try again.");
-		} finally {
-			setBusy(false);
-		}
+	// Search / Enter only acts on a picked suggestion (button is disabled otherwise).
+	function submit() {
+		if (selected) go(selected);
 	}
 
 	return (
@@ -145,7 +129,6 @@ export function DirectorySearchHero() {
 						value={q}
 						onChange={(e) => {
 							setQ(e.target.value);
-							setErr("");
 							setSelected(null);
 						}}
 						onKeyDown={(e) => {
@@ -187,19 +170,13 @@ export function DirectorySearchHero() {
 				<button
 					type="button"
 					onClick={submit}
-					disabled={busy || !q.trim()}
-					className="inline-flex items-center gap-1.5 rounded-full bg-teal-500 text-white px-5 py-2.5 text-[14px] font-semibold disabled:opacity-50 hover:bg-teal-600 transition-colors shrink-0"
+					disabled={!selected}
+					className="inline-flex items-center gap-1.5 rounded-full bg-teal-500 text-white px-5 py-2.5 text-[14px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-teal-600 transition-colors shrink-0"
 				>
 					<Icon name="search" size={15} />
-					{busy ? "…" : "Search"}
+					Search
 				</button>
 			</div>
-
-			{err && (
-				<p className="mt-2.5 text-[13.5px] text-rating-improve text-center">
-					{err}
-				</p>
-			)}
 		</div>
 	);
 }
