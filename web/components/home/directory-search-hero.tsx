@@ -102,7 +102,7 @@ export function DirectorySearchHero() {
 						value={careType}
 						onChange={(e) => setCareType(e.target.value)}
 						aria-label="Care type"
-						className="appearance-none bg-transparent rounded-full pl-3.5 pr-8 py-2.5 text-[14px] font-semibold text-body cursor-pointer focus:outline-none"
+						className="appearance-none bg-transparent rounded-full pl-3.5 pr-8 py-2.5 text-[14px] font-semibold text-body cursor-pointer focus:outline-none w-44 truncate"
 					>
 						{CARE_OPTIONS.map((o) => (
 							<option key={o.value} value={o.value}>
@@ -135,7 +135,7 @@ export function DirectorySearchHero() {
 						}}
 						onFocus={() => suggestions.length > 0 && setOpen(true)}
 						onBlur={() => setTimeout(() => setOpen(false), 120)}
-						placeholder="Suburb or postcode, e.g. Parramatta or 2150"
+						placeholder="Enter your suburb or postcode"
 						className="flex-1 min-w-0 bg-transparent text-[16px] px-2.5 py-2 focus:outline-none placeholder:text-muted-foreground"
 						aria-label="Search by suburb or postcode"
 						autoComplete="off"
