@@ -1,6 +1,5 @@
 import { SiteHeader } from "@/components/ds/site-header";
 import { SiteFooter } from "@/components/ds/site-footer";
-import { ResultsToolbar } from "./results-toolbar";
 import { SuburbResults, type CareLink } from "./suburb-results";
 import {
 	CARE_TYPES,
@@ -42,13 +41,12 @@ export function SuburbDirectory({
 }) {
 	const { suburbName, state, postcode, careType, stats } = data;
 	const stateLong = state ? (stateName(state) ?? state) : "";
-	const heading = careType
-		? `${CARE_TYPES[careType].label} in ${suburbName}, ${state} ${postcode}`
-		: `Childcare in ${suburbName}, ${state} ${postcode}`;
+	const headingPrefix = careType ? CARE_TYPES[careType].label : "Childcare";
+	const heading = `${headingPrefix} in ${suburbName}, ${state} ${postcode}`;
 
 	const introSuburb = `There ${stats.total === 1 ? "is" : "are"} ${stats.total} approved ${
 		careType ? `${CARE_TYPES[careType].label.toLowerCase()} ` : ""
-	}${stats.total === 1 ? "service" : "services"} in ${suburbName} (${postcode})${
+	}${stats.total === 1 ? "service" : "services"} in and around ${suburbName} (${postcode})${
 		stateLong ? `, ${stateLong}` : ""
 	}. ${
 		stats.exceeding > 0
@@ -64,29 +62,19 @@ export function SuburbDirectory({
 		<div className="flex flex-col min-h-dvh bg-background">
 			<SiteHeader />
 
-			{/* First body row: search + filters (sticky). */}
-			<ResultsToolbar
+			{/* The toolbar (sticky), list and map all live in the client island so the
+			    "Map Area" search-this-area state is shared across them. */}
+			<SuburbResults
+				data={data}
+				nearby={nearby}
 				suburbSlug={suburbSlug}
-				postcode={postcode}
-				state={state ?? ""}
-				suburbName={suburbName}
-				careType={careType ?? ""}
 				rating={rating}
+				stateLong={stateLong}
+				heading={heading}
+				headingPrefix={headingPrefix}
+				introSuburb={introSuburb}
+				careLinks={buildCareLinks(data)}
 			/>
-
-			<main className="flex-1">
-				<div className="w-full">
-					<SuburbResults
-						data={data}
-						nearby={nearby}
-						rating={rating}
-						stateLong={stateLong}
-						heading={heading}
-						introSuburb={introSuburb}
-						careLinks={buildCareLinks(data)}
-					/>
-				</div>
-			</main>
 			<SiteFooter />
 		</div>
 	);

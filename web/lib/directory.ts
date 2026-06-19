@@ -603,6 +603,13 @@ export type SuburbPage = {
 // (the route then renders notFound, so we never ship empty/doorway pages).
 export type SortKey = "rating" | "places" | "name";
 
+// Default catchment for a suburb landing page + "Search this area". Competitors (KindiCare/
+// Toddle) headline "X centres in {suburb}" but actually return a radius around the suburb,
+// blending nearby suburbs — that's how Marsfield shows ~28-50 instead of its 3 strict rows.
+const SUBURB_RADIUS_KM = 5;
+// Cap the set so dense inner-city catchments stay sane; the count shown == the list length.
+const AREA_LIMIT = 50;
+
 export async function getSuburbPage(opts: {
 	suburb: string; // slug
 	postcode: string;
@@ -611,53 +618,78 @@ export async function getSuburbPage(opts: {
 	sort?: SortKey;
 }): Promise<SuburbPage | null> {
 	const suburb = opts.suburb.replace(/-/g, " ");
+	// Anchor on the suburb's own centroid + identity (name/state come from its rows), then
+	// radius-search around it. The strict suburb name only seeds the centre of the search.
+	const anchorRes = await pool.query<{
+		state: string | null;
+		total: number;
+		geocoded: number;
+		lat: number | null;
+		lng: number | null;
+	}>(
+		`SELECT max(state) AS state, count(*)::int AS total,
+		        count(*) FILTER (WHERE latitude IS NOT NULL)::int AS geocoded,
+		        avg(latitude)::float8 AS lat, avg(longitude)::float8 AS lng
+		 FROM services WHERE upper(suburb) = upper($1) AND postcode = $2`,
+		[suburb, opts.postcode],
+	);
+	const a = anchorRes.rows[0];
+	if (!a || !a.total) return null; // unknown suburb → 404 (no doorway pages)
+
+	// Radius path (the default): blend nearby centres around the suburb centroid.
+	if (a.geocoded > 0 && a.lat != null && a.lng != null) {
+		const area = await getAreaCentres({
+			lat: a.lat,
+			lng: a.lng,
+			radiusKm: SUBURB_RADIUS_KM,
+			careType: opts.careType ?? null,
+			minRating: opts.minRating ?? null,
+			sort: opts.sort,
+			limit: AREA_LIMIT,
+		});
+		return {
+			suburbName: titleCase(suburb),
+			state: a.state,
+			postcode: opts.postcode,
+			careType: opts.careType ?? null,
+			centres: area.centres,
+			stats: area.stats,
+			center: area.center,
+		};
+	}
+
+	// Fallback: the suburb has rows but none are geocoded, so a radius search is impossible.
+	// Serve the strict suburb match (no map pins) rather than an empty page.
 	const where = ["upper(suburb) = upper($1)", "postcode = $2"];
 	const params: unknown[] = [suburb, opts.postcode];
 	if (opts.careType) where.push(CARE_TYPES[opts.careType].predicate);
-	// Stats are always computed over the whole suburb (so the chips show the real spread);
-	// the rating filter only narrows the displayed list.
-	const statsWhere = where.slice();
 	if (opts.minRating && (RATING_ORDER as readonly string[]).includes(opts.minRating)) {
-		const allowed = RATING_ORDER.slice(RATING_ORDER.indexOf(opts.minRating as (typeof RATING_ORDER)[number]));
+		const allowed = RATING_ORDER.slice(
+			RATING_ORDER.indexOf(opts.minRating as (typeof RATING_ORDER)[number]),
+		);
 		params.push(allowed);
 		where.push(`overall_rating = ANY($${params.length})`);
 	}
-	const orderBy =
-		opts.sort === "places"
-			? "number_of_approved_places DESC NULLS LAST, service_name"
-			: opts.sort === "name"
-				? "service_name"
-				: `${RATING_RANK_SQL}, service_name`;
-
-	const [listRes, statsRes] = await Promise.all([
-		pool.query<Row>(
-			`SELECT ${SELECT} FROM services WHERE ${where.join(" AND ")} ORDER BY ${orderBy}`,
-			params,
-		),
-		pool.query<Row>(
-			`SELECT ${SELECT} FROM services WHERE ${statsWhere.join(" AND ")}`,
-			// Only $1 (suburb) + $2 (postcode) are params; care-type predicate is inline SQL.
-			params.slice(0, 2),
-		),
-	]);
-	if (!statsRes.rows.length) return null;
-	const centres = listRes.rows.map(toCentre);
-	const allCentres = statsRes.rows.map(toCentre);
+	const { rows } = await pool.query<Row>(
+		`SELECT ${SELECT} FROM services WHERE ${where.join(" AND ")} ORDER BY ${RATING_RANK_SQL}, service_name`,
+		params,
+	);
+	const centres = rows.map(toCentre);
 	return {
 		suburbName: titleCase(suburb),
-		state: statsRes.rows[0].state,
+		state: a.state,
 		postcode: opts.postcode,
 		careType: opts.careType ?? null,
 		centres,
-		stats: computeStats(allCentres),
-		center: centroid(centres.length ? centres : allCentres),
+		stats: computeStats(centres),
+		center: centroid(centres),
 	};
 }
 
-// "Search this area" on the suburb-page map: centres within a radius of an arbitrary
-// map centre (not a suburb boundary). Same DirectoryCentre shape + stats as getSuburbPage
-// so the client can swap the list/map in place. Rating filter only narrows the LIST (stats
-// stay over the whole area, mirroring getSuburbPage).
+// Centres within a radius of an arbitrary map centre, nearest first — powers both the
+// default suburb catchment (above) and "Search this area" on the map. ONE query: the stats
+// are computed over exactly the (capped, filtered) set returned, so the "N centres" header
+// always matches the list length (no "150 in the chip, 50 in the list" mismatch).
 export type AreaResult = {
 	centres: DirectoryCentre[];
 	stats: SuburbStats;
@@ -679,8 +711,6 @@ export async function getAreaCentres(opts: {
 		"ST_DWithin(geog, ST_MakePoint($1,$2)::geography, $3)",
 	];
 	if (opts.careType) where.push(CARE_TYPES[opts.careType].predicate);
-	// Stats span the whole area; the rating filter only narrows the displayed list.
-	const statsWhere = where.slice();
 	if (
 		opts.minRating &&
 		(RATING_ORDER as readonly string[]).includes(opts.minRating)
@@ -691,29 +721,27 @@ export async function getAreaCentres(opts: {
 		params.push(allowed);
 		where.push(`overall_rating = ANY($${params.length})`);
 	}
+	const dist = `geog <-> ST_MakePoint($1,$2)::geography`;
+	// Default = nearest first (a "near here" page); other sorts tie-break on distance.
 	const orderBy =
-		opts.sort === "places"
-			? "number_of_approved_places DESC NULLS LAST, service_name"
-			: opts.sort === "name"
-				? "service_name"
-				: `${RATING_RANK_SQL}, service_name`;
-	params.push(opts.limit ?? 60);
+		opts.sort === "rating"
+			? `${RATING_RANK_SQL}, ${dist}`
+			: opts.sort === "places"
+				? `number_of_approved_places DESC NULLS LAST, ${dist}`
+				: opts.sort === "name"
+					? "service_name"
+					: dist;
+	params.push(opts.limit ?? AREA_LIMIT);
 	const limIdx = params.length;
 
-	const [listRes, statsRes] = await Promise.all([
-		pool.query<Row>(
-			`SELECT ${SELECT} FROM services WHERE ${where.join(" AND ")} ORDER BY ${orderBy} LIMIT $${limIdx}`,
-			params,
-		),
-		// Stats query takes only [lng, lat, radius] — the care-type predicate is inline SQL.
-		pool.query<Row>(
-			`SELECT ${SELECT} FROM services WHERE ${statsWhere.join(" AND ")}`,
-			params.slice(0, 3),
-		),
-	]);
+	const { rows } = await pool.query<Row>(
+		`SELECT ${SELECT} FROM services WHERE ${where.join(" AND ")} ORDER BY ${orderBy} LIMIT $${limIdx}`,
+		params,
+	);
+	const centres = rows.map(toCentre);
 	return {
-		centres: listRes.rows.map(toCentre),
-		stats: computeStats(statsRes.rows.map(toCentre)),
+		centres,
+		stats: computeStats(centres),
 		center: { lat: opts.lat, lng: opts.lng },
 	};
 }
