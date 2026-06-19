@@ -7,7 +7,7 @@ import { Icon } from "@/components/ds/icon";
 // Care types kept client-side (static) since lib/directory is server-only.
 const CARE_OPTIONS: { value: string; label: string }[] = [
 	{ value: "", label: "All care types" },
-	{ value: "long-day-care", label: "Long day care" },
+	{ value: "long-day-care", label: "Long day care (childcare centre)" },
 	{ value: "preschool", label: "Preschool & kindergarten" },
 	{ value: "before-school-care", label: "Before school care" },
 	{ value: "after-school-care", label: "After school care" },
