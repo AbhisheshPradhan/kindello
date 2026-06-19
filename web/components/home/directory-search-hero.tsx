@@ -34,12 +34,20 @@ export function DirectorySearchHero() {
 	const [open, setOpen] = useState(false);
 	const [busy, setBusy] = useState(false);
 	const [err, setErr] = useState("");
+	// The suggestion the user picked (fills the input; navigation waits for Search).
+	const [selected, setSelected] = useState<Suggestion | null>(null);
 	const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 	const abort = useRef<AbortController | undefined>(undefined);
+	const justPicked = useRef(false);
 
 	// Debounced typeahead — only after 3 chars, and we cancel the in-flight request on
 	// each keystroke so we never race redundant calls.
 	useEffect(() => {
+		// Picking a suggestion rewrites the input; don't reopen the dropdown for that.
+		if (justPicked.current) {
+			justPicked.current = false;
+			return;
+		}
 		const t = q.trim();
 		if (t.length < 3) {
 			setSuggestions([]);
@@ -74,8 +82,18 @@ export function DirectorySearchHero() {
 		);
 	}
 
-	// Search button / Enter: use the top suggestion, else resolve the typed text.
+	// Pick a suggestion: fill the input + remember it, but DON'T navigate (Search does).
+	function pick(s: Suggestion) {
+		setSelected(s);
+		justPicked.current = true;
+		setQ(`${s.suburb}, ${s.state} ${s.postcode}`);
+		setSuggestions([]);
+		setOpen(false);
+	}
+
+	// Search button / Enter: a picked suggestion wins, else the top match, else resolve.
 	async function submit() {
+		if (selected) return go(selected);
 		if (suggestions[0]) return go(suggestions[0]);
 		const t = q.trim();
 		if (!t || busy) return;
@@ -128,6 +146,7 @@ export function DirectorySearchHero() {
 						onChange={(e) => {
 							setQ(e.target.value);
 							setErr("");
+							setSelected(null);
 						}}
 						onKeyDown={(e) => {
 							if (e.key === "Enter") submit();
@@ -147,7 +166,7 @@ export function DirectorySearchHero() {
 									<button
 										type="button"
 										// onMouseDown fires before the input's onBlur closes the list.
-										onMouseDown={() => go(s)}
+										onMouseDown={() => pick(s)}
 										className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-secondary"
 									>
 										<Icon name="map-pin" size={15} className="text-muted-foreground shrink-0" />
