@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV = [
 	{ label: "Browse", href: "/search" },
@@ -63,7 +62,6 @@ export function SiteHeader({ onLogoClick }: { onLogoClick?: () => void }) {
 
 			<span className="flex-1" />
 
-			<ThemeToggle />
 			<Link
 				href="/search"
 				className="hidden min-[820px]:inline-flex text-sm font-semibold text-body px-3.5 py-2 no-underline"

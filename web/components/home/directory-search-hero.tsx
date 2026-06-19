@@ -97,14 +97,16 @@ export function DirectorySearchHero() {
 
 	return (
 		<div className="relative mx-auto max-w-2xl text-left">
-			<div className="flex items-center rounded-full border border-border bg-card shadow-md pl-1.5 pr-1.5 py-1.5 focus-within:border-teal-300 focus-within:ring-2 focus-within:ring-teal-100">
+			{/* Mobile: 1-col stacked card (care type / location / full-width Search).
+			    sm+: the horizontal rounded pill. */}
+			<div className="flex flex-col sm:flex-row sm:items-center rounded-2xl sm:rounded-full border border-border bg-card shadow-md p-1.5 sm:pl-1.5 sm:pr-1.5 sm:py-1.5 focus-within:border-teal-300 focus-within:ring-2 focus-within:ring-teal-100">
 				{/* Care-type dropdown */}
-				<div className="relative shrink-0">
+				<div className="relative w-full sm:w-auto shrink-0">
 					<select
 						value={careType}
 						onChange={(e) => setCareType(e.target.value)}
 						aria-label="Care type"
-						className="appearance-none bg-transparent rounded-full pl-3.5 pr-8 py-2.5 text-[14px] font-semibold text-body cursor-pointer focus:outline-none w-44 truncate"
+						className="appearance-none bg-transparent rounded-full pl-3.5 pr-8 py-2.5 text-[14px] font-semibold text-body cursor-pointer focus:outline-none w-full sm:w-44 truncate"
 					>
 						{CARE_OPTIONS.map((o) => (
 							<option key={o.value} value={o.value}>
@@ -119,11 +121,11 @@ export function DirectorySearchHero() {
 					/>
 				</div>
 
-				<span className="w-px h-6 bg-border mx-1 shrink-0" />
+				<span className="h-px w-full bg-border sm:h-6 sm:w-px sm:mx-1 shrink-0" />
 
 				{/* Location field — the autocomplete dropdown is anchored here, so it sits
 				    below the location only (not the whole bar). */}
-				<div className="relative flex-1 flex items-center min-w-0">
+				<div className="relative flex-1 flex items-center min-w-0 w-full">
 					<Icon name="map-pin" size={18} className="text-teal-500 shrink-0 ml-2" />
 					<input
 						value={q}
@@ -171,7 +173,7 @@ export function DirectorySearchHero() {
 					type="button"
 					onClick={submit}
 					disabled={!selected}
-					className="inline-flex items-center gap-1.5 rounded-full bg-teal-500 text-white px-5 py-2.5 text-[14px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-teal-600 transition-colors shrink-0"
+					className="mt-1.5 w-full justify-center sm:mt-0 sm:w-auto sm:justify-start inline-flex items-center gap-1.5 rounded-full bg-teal-500 text-white px-5 py-2.5 text-[14px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-teal-600 transition-colors shrink-0"
 				>
 					<Icon name="search" size={15} />
 					Search

@@ -71,13 +71,16 @@ CREATE TABLE IF NOT EXISTS services_meta (
     age_max_years     numeric(3,1),
     derived_at        timestamptz,
 
-    -- Stage 2: Google Places (resellable fields only; photos served live, not cached)
+    -- Stage 2: discovery + crawl (keyless — Bing search via Puppeteer/Webshare).
+    website           text,                 -- centre's own site (search-discovered)
+    website_source    text,                 -- 'search-bing' | 'provider' | 'manual'
+    website_verified  boolean,              -- page actually mentions the centre name/suburb
+    email             text,                 -- scraped from the site (regex)
+    discovered_at     timestamptz,
+
+    -- google_place_id is the ONE Google field we may store (live garnish only); the
+    -- rest of Google (rating/reviews/photos) stays render-time, never persisted.
     google_place_id      text,
-    google_rating        numeric(2,1),
-    google_review_count  integer,
-    google_website       text,
-    google_email         text,
-    places_fetched_at    timestamptz,
 
     -- Stage 4: centre-specific extraction (inclusions/languages are per-location;
     --   philosophy/programs live on providers_meta and are inherited)

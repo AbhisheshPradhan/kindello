@@ -36,13 +36,34 @@ export async function generateMetadata({
 	};
 }
 
-export default async function CareTypePage({ params }: { params: Params }) {
+export default async function CareTypePage({
+	params,
+	searchParams,
+}: {
+	params: Params;
+	searchParams: Promise<{ rating?: string; sort?: string }>;
+}) {
 	const { careType, suburb, postcode } = await params;
 	if (!isCareTypeSlug(careType)) notFound();
-	const data = await getSuburbPage({ suburb, postcode, careType });
+	const { rating, sort } = await searchParams;
+	const data = await getSuburbPage({
+		suburb,
+		postcode,
+		careType,
+		minRating: rating,
+		sort: sort as "rating" | "places" | "name" | undefined,
+	});
 	if (!data) notFound();
 	const nearby = data.center
 		? await getNearbySuburbs(data.center, postcode)
 		: [];
-	return <SuburbDirectory data={data} nearby={nearby} />;
+	return (
+		<SuburbDirectory
+			data={data}
+			nearby={nearby}
+			suburbSlug={suburb}
+			rating={rating ?? ""}
+			sort={sort ?? "rating"}
+		/>
+	);
 }

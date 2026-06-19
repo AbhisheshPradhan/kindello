@@ -26,12 +26,32 @@ export async function generateMetadata({
 	};
 }
 
-export default async function SuburbPage({ params }: { params: Params }) {
+export default async function SuburbPage({
+	params,
+	searchParams,
+}: {
+	params: Params;
+	searchParams: Promise<{ rating?: string; sort?: string }>;
+}) {
 	const { place, postcode } = await params;
-	const data = await getSuburbPage({ suburb: place, postcode });
+	const { rating, sort } = await searchParams;
+	const data = await getSuburbPage({
+		suburb: place,
+		postcode,
+		minRating: rating,
+		sort: sort as "rating" | "places" | "name" | undefined,
+	});
 	if (!data) notFound();
 	const nearby = data.center
 		? await getNearbySuburbs(data.center, postcode)
 		: [];
-	return <SuburbDirectory data={data} nearby={nearby} />;
+	return (
+		<SuburbDirectory
+			data={data}
+			nearby={nearby}
+			suburbSlug={place}
+			rating={rating ?? ""}
+			sort={sort ?? "rating"}
+		/>
+	);
 }

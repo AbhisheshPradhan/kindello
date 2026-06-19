@@ -187,6 +187,7 @@ def main() -> None:
         with conn.cursor() as cur:
             cur.executemany(SERVICE_UPSERT, service_vals)
             cur.executemany(PROVIDER_UPSERT, provider_vals)
+            cur.execute(PROVIDER_AGGREGATES)   # roll up spine stats onto providers_meta
         conn.commit()
 
     n_age = sum(1 for v in service_vals if v[3] is not None)

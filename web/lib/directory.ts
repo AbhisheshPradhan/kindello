@@ -601,30 +601,56 @@ export type SuburbPage = {
 
 // Suburb (and optionally care-type) landing data. Returns null if no centre matches
 // (the route then renders notFound, so we never ship empty/doorway pages).
+export type SortKey = "rating" | "places" | "name";
+
 export async function getSuburbPage(opts: {
 	suburb: string; // slug
 	postcode: string;
 	careType?: CareTypeSlug;
+	minRating?: string; // raw NQS tier; filters to that tier or better
+	sort?: SortKey;
 }): Promise<SuburbPage | null> {
 	const suburb = opts.suburb.replace(/-/g, " ");
 	const where = ["upper(suburb) = upper($1)", "postcode = $2"];
 	const params: unknown[] = [suburb, opts.postcode];
 	if (opts.careType) where.push(CARE_TYPES[opts.careType].predicate);
-	const { rows } = await pool.query<Row>(
-		`SELECT ${SELECT} FROM services WHERE ${where.join(" AND ")}
-     ORDER BY ${RATING_RANK_SQL}, service_name`,
-		params,
-	);
-	if (!rows.length) return null;
-	const centres = rows.map(toCentre);
+	// Stats are always computed over the whole suburb (so the chips show the real spread);
+	// the rating filter only narrows the displayed list.
+	const statsWhere = where.slice();
+	if (opts.minRating && (RATING_ORDER as readonly string[]).includes(opts.minRating)) {
+		const allowed = RATING_ORDER.slice(RATING_ORDER.indexOf(opts.minRating as (typeof RATING_ORDER)[number]));
+		params.push(allowed);
+		where.push(`overall_rating = ANY($${params.length})`);
+	}
+	const orderBy =
+		opts.sort === "places"
+			? "number_of_approved_places DESC NULLS LAST, service_name"
+			: opts.sort === "name"
+				? "service_name"
+				: `${RATING_RANK_SQL}, service_name`;
+
+	const [listRes, statsRes] = await Promise.all([
+		pool.query<Row>(
+			`SELECT ${SELECT} FROM services WHERE ${where.join(" AND ")} ORDER BY ${orderBy}`,
+			params,
+		),
+		pool.query<Row>(
+			`SELECT ${SELECT} FROM services WHERE ${statsWhere.join(" AND ")}`,
+			// Only $1 (suburb) + $2 (postcode) are params; care-type predicate is inline SQL.
+			params.slice(0, 2),
+		),
+	]);
+	if (!statsRes.rows.length) return null;
+	const centres = listRes.rows.map(toCentre);
+	const allCentres = statsRes.rows.map(toCentre);
 	return {
 		suburbName: titleCase(suburb),
-		state: rows[0].state,
+		state: statsRes.rows[0].state,
 		postcode: opts.postcode,
 		careType: opts.careType ?? null,
 		centres,
-		stats: computeStats(centres),
-		center: centroid(centres),
+		stats: computeStats(allCentres),
+		center: centroid(centres.length ? centres : allCentres),
 	};
 }
 
