@@ -16,9 +16,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
 	const { place } = await params;
 	const hub = await getStateHub(place);
-	if (!hub) return { title: "Childcare — Kindello" };
+	if (!hub) return { title: "Childcare | Kindello" };
 	return {
-		title: `Childcare in ${hub.name} — ${hub.total.toLocaleString()} approved centres | Kindello`,
+		title: `Childcare in ${hub.name} (${hub.total.toLocaleString()} approved centres) | Kindello`,
 		description: `Browse ${hub.total.toLocaleString()} approved childcare services across ${hub.suburbCount.toLocaleString()} suburbs in ${hub.name}. NQS ratings, approved places and maps by suburb.`,
 		alternates: { canonical: `/childcare/${place.toLowerCase()}` },
 	};

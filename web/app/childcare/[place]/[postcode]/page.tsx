@@ -15,13 +15,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
 	const { place, postcode } = await params;
 	const data = await getSuburbPage({ suburb: place, postcode });
-	if (!data) return { title: "Childcare — Kindello" };
+	if (!data) return { title: "Childcare | Kindello" };
 	const where = `${data.suburbName}, ${data.state} ${postcode}`;
 	return {
-		title: `Childcare in ${where} — ${data.stats.total} approved ${data.stats.total === 1 ? "centre" : "centres"} | Kindello`,
+		title: `Childcare in ${where} (${data.stats.total} approved ${data.stats.total === 1 ? "centre" : "centres"}) | Kindello`,
 		description: `Compare ${data.stats.total} approved childcare services in ${where}${
 			data.state ? ` (${stateName(data.state) ?? data.state})` : ""
-		} — NQS ratings, approved places, hours and contact details.`,
+		}. NQS ratings, approved places, hours and contact details.`,
 		alternates: { canonical: `/childcare/${place}/${postcode}` },
 	};
 }

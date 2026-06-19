@@ -25,21 +25,29 @@ Source-of-truth fields are overwritten on daily sync; enrichment fields are writ
 
 **Empirical dataset characteristics** (rating/service-type distributions, field coverage, FDC address caveat) are recorded in [`docs/data-findings.md`](docs/data-findings.md) — read it before making product decisions that depend on how the data is actually shaped (e.g. NQS "Meeting" is 68% so it's a weak per-row signal; every Centre-Based Care row carries a specific type flag; phone is the only contact field).
 
-## Enrichment project (`services_meta`)
+## Enrichment project (`services_meta` + `providers_meta`)
 
-Enrichment lives in a **separate 1:1 table `services_meta`** (keyed on `service_approval_number`, `ON DELETE CASCADE`), deliberately kept out of the spine's daily-sync blast radius — `ingest/load.py` never touches it. Schema: [`ingest/enrichment_schema.sql`](ingest/enrichment_schema.sql). Every third-party field carries its own `*_fetched_at` provenance so sources refresh on independent cadences and the feed we sell has a clean licensing line (spine = open ACECQA; enrichment = our IP). Staged by cost + source:
+Enrichment lives in **separate 1:1 meta tables** (`services_meta` keyed on `service_approval_number`, `providers_meta` keyed on `provider_approval_number`, both `ON DELETE CASCADE`), deliberately kept out of the spine's daily-sync blast radius — `ingest/load.py` never touches them. Schema: [`ingest/enrichment_schema.sql`](ingest/enrichment_schema.sql). Every third-party field carries its own `*_fetched_at` provenance so sources refresh on independent cadences and (later) the feed we sell has a clean licensing line (spine = open ACECQA; enrichment = our IP).
 
-| Stage | Datapoints | Source | Cost | Status |
-| ----- | ---------- | ------ | ---- | ------ |
-| **1. Derivables** | `slug`, `google_maps_link`, `age_min/max_years` | computed from data we own ([`ingest/derive.py`](ingest/derive.py)) | free | ✅ built + run (18,229 rows) |
-| **2. Places** | rating, review count, website, email | Google Places API (cache once) | $/1k | planned |
-| **3. ABR** | ABN | ABR API | free | planned |
-| **4. Operator extraction** | philosophy, programs, inclusions, languages | crawl operator site → Claude structured extraction | LLM | planned |
-| **5. Claim portal (the wedge)** | **fees, vacancies, photos** | centre self-serve (also seeds the CRM) | build | planned |
+**Run enrichment provider-first.** Some data is inherently provider-level and is fetched **once per provider/domain, then inherited down** to that provider's services — never re-fetched per service: **ABN** (belongs to the legal entity → `providers_meta`) and the **operator-site crawl** (one brand runs one website → logo/description/philosophy/programs to `providers_meta`, deduped by domain). Only truly per-location data (Places, fees, vacancies, this-centre photos, inclusions/languages) is service-level. Reuse flows provider → service, not the reverse.
 
-Key calls: **age range** is inferred from the service-type flags (LDC 0–5, preschool 3–5, OSHC 5–12, FDC 0–12; widest span across a service's flags). **Google photos are served live, NOT cached** (licensing) — owned photos come from the claim portal. **No competitor crawling** — what we lack from them (fees/reviews/photos) is the copyrighted/Google-owned data we can't resell anyway; benchmark only. `ingest/derive.py` is safe to re-run (overwrites only Stage-1 cols).
+| Stage | Datapoints | Table | Source | Status |
+| ----- | ---------- | ----- | ------ | ------ |
+| **1. Derivables** | `slug`, `google_maps_link`, `age_min/max_years` (services); `slug` (providers) | both | computed from data we own ([`ingest/derive.py`](ingest/derive.py)) | ✅ built |
+| **2. Discovery + Places** | `place_id` + website URL (discovery); rating/review_count/website/email | services | Google Places API | planned |
+| **3. ABR** | `abn` | providers | ABR API (free) | planned |
+| **4. Operator crawl** | logo, description, philosophy, programs (brand); inclusions, languages, photos, email (centre) | both | crawl per domain → Claude extraction | planned |
+| **5. Claim portal (the wedge)** | **fees, vacancies, owned photos** | services | centre self-serve (also seeds the CRM) | planned |
 
-**Internal id (planned):** add `services.id BIGINT GENERATED ALWAYS AS IDENTITY` as a stable, regulator-agnostic handle; its base36 form is the public URL `{code}` (see URL rule in conventions). `service_approval_number` remains the data join key.
+**Settled data-provenance rules (do not relitigate):**
+- **Free consumer product for now — no feed sold yet.** Image/content provenance purity is a *future* concern that activates when we monetise the feed, NOT a launch blocker. At the free stage we sit in the same posture as any directory / Perplexity: proxy + attribute + honour takedowns.
+- **Google content (Places photos, reviews, rating, Street View) is render-time-only — NEVER stored.** It's an API-contract limit (storing risks the key), and the photo URLs expire anyway. Store **only `place_id`** (the one field Google lets you keep); fetch photos live off it, build Street View URLs live off lat/lng.
+- **Stored photos** live in `services_meta.photos` JSONB as **tagged URLs, not bytes**: `{ "url", "source": "operator-website" | "claim-portal", "fetched_at" }`. Only those two sources ever appear (no `"google"`, no `"streetview"`). Serve via `next/image` `remotePatterns` (edge-proxied/optimised, not raw hotlinked). `operator-website` URLs are **provisional placeholders**; the **claim portal** lets a centre upload owned photos (`claim-portal`, bytes we host = the only resellable image asset) and **remove** any `operator-website` URL — that removal *is* our takedown mechanism and a reason for centres to claim.
+- **age range** inferred from service-type flags (LDC 0–5, preschool 3–5, OSHC 5–12, FDC 0–12; widest span across a service's flags).
+- **No competitor crawling** — what we lack from them (fees/reviews/photos) is the copyrighted/Google-owned data anyway; benchmark only.
+- `ingest/derive.py` is safe to re-run (overwrites only Stage-1 cols).
+
+**Internal ids (built):** `services.id` and `providers.id` are `BIGINT GENERATED ALWAYS AS IDENTITY` — stable, regulator-agnostic handles whose base36 form is the public URL `{code}` (`/childcare/{code}/{slug}`, `/brands/{code}/{slug}`; see URL rule in conventions). They're never in `load.py`'s upsert lists, so the daily sync never disturbs them. The approval numbers stay the data join keys. Slugs are cosmetic / 301-able (`name-suburb-postcode` for services, brand name for providers) — the `{code}` carries uniqueness.
 
 ## Tech stack
 

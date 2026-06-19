@@ -28,10 +28,10 @@ export async function generateMetadata({
 	const ct = CARE_TYPES[careType];
 	const where = `${data.suburbName}, ${data.state} ${postcode}`;
 	return {
-		title: `${ct.plural} in ${where} — ${data.stats.total} ${data.stats.total === 1 ? "service" : "services"} | Kindello`,
+		title: `${ct.plural} in ${where} (${data.stats.total} ${data.stats.total === 1 ? "service" : "services"}) | Kindello`,
 		description: `Approved ${ct.label.toLowerCase()} in ${where}${
 			data.state ? ` (${stateName(data.state) ?? data.state})` : ""
-		} — NQS ratings, approved places, hours and contact details.`,
+		}. NQS ratings, approved places, hours and contact details.`,
 		alternates: { canonical: `/${careType}/${suburb}/${postcode}` },
 	};
 }

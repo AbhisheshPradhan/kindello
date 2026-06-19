@@ -49,9 +49,9 @@ export function DirectoryHome({
 							Find childcare near you.
 						</h1>
 						<p className="text-[19px] leading-normal text-body mt-4.5 mx-auto max-w-145">
-							Every approved childcare and early-education service in Australia
-							— compare NQS quality ratings, approved places and care types,
-							synced daily from ACECQA.
+							Every approved childcare and early-education service in Australia,
+							with NQS quality ratings, approved places and care types, synced
+							daily from ACECQA.
 						</p>
 
 						<div className="mt-9">

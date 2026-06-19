@@ -799,3 +799,37 @@ export async function getStates(): Promise<string[]> {
 	);
 	return rows.map((r) => r.state).filter((s) => stateName(s) !== null);
 }
+
+// Typeahead for the homepage search: suburbs/postcodes matching a prefix, biggest first.
+export async function searchSuburbs(
+	term: string,
+	limit = 8,
+): Promise<SuburbLink[]> {
+	const t = term.trim();
+	if (t.length < 2) return [];
+	const digits = /^\d+$/.test(t);
+	let sql: string;
+	const params: unknown[] = [];
+	if (digits) {
+		sql = `SELECT suburb, state, postcode, count(*) n FROM services WHERE postcode LIKE $1
+           GROUP BY suburb, state, postcode ORDER BY n DESC LIMIT $2`;
+		params.push(`${t}%`, limit);
+	} else {
+		sql = `SELECT suburb, state, postcode, count(*) n FROM services WHERE suburb ILIKE $1
+           GROUP BY suburb, state, postcode ORDER BY (upper(suburb) = upper($2)) DESC, n DESC LIMIT $3`;
+		params.push(`${t}%`, t, limit);
+	}
+	const { rows } = await pool.query<{
+		suburb: string;
+		state: string;
+		postcode: string;
+		n: string;
+	}>(sql, params);
+	return rows.map((r) => ({
+		suburb: titleCase(r.suburb),
+		slug: suburbSlug(r.suburb),
+		postcode: r.postcode,
+		state: r.state,
+		count: Number(r.n),
+	}));
+}
