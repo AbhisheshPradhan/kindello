@@ -73,9 +73,10 @@ CREATE TABLE IF NOT EXISTS services_meta (
 
     -- Stage 2: discovery + crawl (keyless — Bing search via Puppeteer/Webshare).
     website           text,                 -- centre's own site (search-discovered)
-    website_source    text,                 -- 'search-bing' | 'provider' | 'manual'
+    website_source    text,                 -- 'search-ddg' | 'provider' | 'manual'
     website_verified  boolean,              -- page actually mentions the centre name/suburb
-    email             text,                 -- scraped from the site (regex)
+    email             text,                 -- scraped from the site (url-decoded)
+    logo_url          text,                 -- brand logo off the site (also rolls up to providers_meta)
     discovered_at     timestamptz,
 
     -- google_place_id is the ONE Google field we may store (live garnish only); the
