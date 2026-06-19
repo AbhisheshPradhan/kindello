@@ -457,3 +457,247 @@ export function distanceKm(
 			Math.sin(dLng / 2) ** 2;
 	return Math.round(2 * R * Math.asin(Math.sqrt(x)) * 10) / 10;
 }
+
+// ---------------------------------------------------------------------------
+// Phase-1 directory landing pages: suburb, care-type×suburb, and state hubs.
+// Reuses SELECT / Row / toCentre / titleCase above. Indexable SEO surfaces.
+// ---------------------------------------------------------------------------
+
+export type CareTypeSlug =
+	| "long-day-care"
+	| "preschool"
+	| "oshc"
+	| "family-day-care";
+
+export const CARE_TYPES: Record<
+	CareTypeSlug,
+	{ label: string; plural: string; predicate: string }
+> = {
+	"long-day-care": {
+		label: "Long day care",
+		plural: "Long day care centres",
+		predicate: "is_long_day_care",
+	},
+	preschool: {
+		label: "Preschool",
+		plural: "Preschools",
+		predicate: "(is_preschool_stand_alone OR is_preschool_part_of_school)",
+	},
+	oshc: {
+		label: "Outside school hours care",
+		plural: "OSHC services",
+		predicate:
+			"(is_oshc_before_school OR is_oshc_after_school OR is_oshc_vacation_care)",
+	},
+	"family-day-care": {
+		label: "Family day care",
+		plural: "Family day care services",
+		predicate: "service_type = 'Family Day Care'",
+	},
+};
+
+export function isCareTypeSlug(s: string): s is CareTypeSlug {
+	return Object.prototype.hasOwnProperty.call(CARE_TYPES, s);
+}
+
+// "Surry Hills" -> "surry-hills". Inverse (slug -> name) just swaps - for space;
+// the DB match is case-insensitive so exact punctuation isn't required.
+export function suburbSlug(name: string): string {
+	return name
+		.toLowerCase()
+		.trim()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+}
+
+const STATE_NAMES: Record<string, string> = {
+	NSW: "New South Wales",
+	VIC: "Victoria",
+	QLD: "Queensland",
+	WA: "Western Australia",
+	SA: "South Australia",
+	TAS: "Tasmania",
+	ACT: "Australian Capital Territory",
+	NT: "Northern Territory",
+};
+export function stateName(code: string): string | null {
+	return STATE_NAMES[code.toUpperCase()] ?? null;
+}
+
+// NQS best-first ordering for list display + "top centres".
+const RATING_RANK_SQL = `array_position(ARRAY['Significant Improvement Required','Working Towards NQS','Meeting NQS','Exceeding NQS','Excellent']::text[], overall_rating) DESC NULLS LAST`;
+
+export type SuburbStats = {
+	total: number;
+	exceeding: number; // Exceeding NQS + Excellent
+	meetingPlus: number;
+	notRated: number;
+	totalPlaces: number;
+	byCare: { ldc: number; preschool: number; oshc: number; fdc: number };
+};
+
+function computeStats(centres: DirectoryCentre[]): SuburbStats {
+	const s: SuburbStats = {
+		total: centres.length,
+		exceeding: 0,
+		meetingPlus: 0,
+		notRated: 0,
+		totalPlaces: 0,
+		byCare: { ldc: 0, preschool: 0, oshc: 0, fdc: 0 },
+	};
+	for (const c of centres) {
+		const r = c.rating;
+		if (r === "Excellent" || r === "Exceeding NQS") s.exceeding++;
+		if (r === "Excellent" || r === "Exceeding NQS" || r === "Meeting NQS")
+			s.meetingPlus++;
+		if (!r) s.notRated++;
+		if (c.places) s.totalPlaces += c.places;
+		if (c.flags.ldc) s.byCare.ldc++;
+		if (c.flags.preschoolStandalone || c.flags.preschoolSchool)
+			s.byCare.preschool++;
+		if (c.flags.oshcBefore || c.flags.oshcAfter || c.flags.oshcVacation)
+			s.byCare.oshc++;
+		if (c.flags.familyDayCare) s.byCare.fdc++;
+	}
+	return s;
+}
+
+function centroid(
+	centres: DirectoryCentre[],
+): { lat: number; lng: number } | null {
+	const pts = centres.filter((c) => c.lat != null && c.lng != null);
+	if (!pts.length) return null;
+	return {
+		lat: pts.reduce((a, c) => a + (c.lat as number), 0) / pts.length,
+		lng: pts.reduce((a, c) => a + (c.lng as number), 0) / pts.length,
+	};
+}
+
+export type SuburbPage = {
+	suburbName: string;
+	state: string | null;
+	postcode: string;
+	careType: CareTypeSlug | null;
+	centres: DirectoryCentre[];
+	stats: SuburbStats;
+	center: { lat: number; lng: number } | null;
+};
+
+// Suburb (and optionally care-type) landing data. Returns null if no centre matches
+// (the route then renders notFound, so we never ship empty/doorway pages).
+export async function getSuburbPage(opts: {
+	suburb: string; // slug
+	postcode: string;
+	careType?: CareTypeSlug;
+}): Promise<SuburbPage | null> {
+	const suburb = opts.suburb.replace(/-/g, " ");
+	const where = ["upper(suburb) = upper($1)", "postcode = $2"];
+	const params: unknown[] = [suburb, opts.postcode];
+	if (opts.careType) where.push(CARE_TYPES[opts.careType].predicate);
+	const { rows } = await pool.query<Row>(
+		`SELECT ${SELECT} FROM services WHERE ${where.join(" AND ")}
+     ORDER BY ${RATING_RANK_SQL}, service_name`,
+		params,
+	);
+	if (!rows.length) return null;
+	const centres = rows.map(toCentre);
+	return {
+		suburbName: titleCase(suburb),
+		state: rows[0].state,
+		postcode: opts.postcode,
+		careType: opts.careType ?? null,
+		centres,
+		stats: computeStats(centres),
+		center: centroid(centres),
+	};
+}
+
+export type SuburbLink = {
+	suburb: string;
+	slug: string;
+	postcode: string;
+	state: string | null;
+	count: number;
+};
+
+// Nearby suburbs (within 15km) for the internal-link graph at the foot of a suburb page.
+export async function getNearbySuburbs(
+	center: { lat: number; lng: number },
+	excludePostcode: string,
+	limit = 8,
+): Promise<SuburbLink[]> {
+	const { rows } = await pool.query<{
+		suburb: string;
+		state: string;
+		postcode: string;
+		n: string;
+	}>(
+		`SELECT suburb, state, postcode, count(*) n,
+            min(ST_Distance(geog, ST_MakePoint($1,$2)::geography)) d
+     FROM services
+     WHERE geog IS NOT NULL AND postcode <> $3
+       AND ST_DWithin(geog, ST_MakePoint($1,$2)::geography, 15000)
+     GROUP BY suburb, state, postcode
+     ORDER BY d ASC
+     LIMIT $4`,
+		[center.lng, center.lat, excludePostcode, limit],
+	);
+	return rows.map((r) => ({
+		suburb: titleCase(r.suburb),
+		slug: suburbSlug(r.suburb),
+		postcode: r.postcode,
+		state: r.state,
+		count: Number(r.n),
+	}));
+}
+
+export type StateHub = {
+	code: string;
+	name: string;
+	total: number;
+	suburbCount: number;
+	topSuburbs: SuburbLink[];
+	topCentres: DirectoryCentre[];
+};
+
+export async function getStateHub(code: string): Promise<StateHub | null> {
+	const name = stateName(code);
+	if (!name) return null;
+	const cu = code.toUpperCase();
+	const { rows: stat } = await pool.query<{ total: string; suburbs: string }>(
+		`SELECT count(*) total, count(DISTINCT (suburb, postcode)) suburbs
+     FROM services WHERE state = $1`,
+		[cu],
+	);
+	if (!Number(stat[0]?.total)) return null;
+	const { rows: subs } = await pool.query<{
+		suburb: string;
+		postcode: string;
+		n: string;
+	}>(
+		`SELECT suburb, postcode, count(*) n FROM services WHERE state = $1
+     GROUP BY suburb, postcode ORDER BY n DESC, suburb LIMIT 60`,
+		[cu],
+	);
+	const { rows: top } = await pool.query<Row>(
+		`SELECT ${SELECT} FROM services
+     WHERE state = $1 AND overall_rating IN ('Exceeding NQS','Excellent')
+     ORDER BY ${RATING_RANK_SQL}, number_of_approved_places DESC NULLS LAST
+     LIMIT 8`,
+		[cu],
+	);
+	return {
+		code: cu,
+		name,
+		total: Number(stat[0].total),
+		suburbCount: Number(stat[0].suburbs),
+		topSuburbs: subs.map((r) => ({
+			suburb: titleCase(r.suburb),
+			slug: suburbSlug(r.suburb),
+			postcode: r.postcode,
+			state: cu,
+			count: Number(r.n),
+		})),
+		topCentres: top.map(toCentre),
+	};
+}
