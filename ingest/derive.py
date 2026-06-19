@@ -1,14 +1,20 @@
 """Stage 1 enrichment — derivables (free, no external calls).
 
 Computes fields we can produce from data we already own and upserts them into
-services_meta (see enrichment_schema.sql):
+services_meta + providers_meta (see enrichment_schema.sql):
 
-  * slug              — SEO URL slug, name-suburb-id (id guarantees uniqueness)
-  * google_maps_link  — name+address search link; covers the ungeocoded tail
-  * age_min/max_years — inferred from the service-type flags
+  services_meta:
+    * slug              — /childcare/{code}/{slug}; name-suburb-postcode
+    * google_maps_link  — name+address search link; covers the ungeocoded tail
+    * age_min/max_years — inferred from the service-type flags
+  providers_meta:
+    * slug              — /brands/{code}/{slug}; brand name
 
-Re-running is safe: it overwrites only the Stage-1 columns + derived_at and
-leaves every other enrichment column (Places/ABR/operator/claim) untouched.
+The base36 form of the spine's internal `id` is the URL {code} and carries
+uniqueness, so slugs are cosmetic (and 301-able) — no id tail needed.
+
+Re-running is safe: it overwrites only the Stage-1 columns and leaves every other
+enrichment column (Places/ABR/operator/claim) untouched.
 
 Usage:
   python derive.py                # apply enrichment_schema.sql then derive all
@@ -56,16 +62,10 @@ def age_range(row: dict) -> tuple[float | None, float | None]:
 
 # --- slug --------------------------------------------------------------------
 
-def slugify(text: str) -> str:
-    text = re.sub(r"[^\w\s-]", "", (text or "").lower())
+def slugify(*parts: str | None) -> str:
+    text = " ".join(p for p in parts if p)
+    text = re.sub(r"[^\w\s-]", "", text.lower())
     return re.sub(r"[\s_-]+", "-", text).strip("-")
-
-
-def make_slug(row: dict) -> str:
-    # Numeric tail of SE-00009695 -> 9695 keeps the URL short but unique.
-    sid = re.sub(r"\D", "", row["service_approval_number"]).lstrip("0") or "0"
-    parts = [p for p in (row.get("service_name"), row.get("suburb")) if p]
-    return "-".join(filter(None, [slugify(" ".join(parts)), sid]))
 
 
 # --- maps link ---------------------------------------------------------------
@@ -78,7 +78,7 @@ def maps_link(row: dict) -> str:
     return "https://www.google.com/maps/search/?" + urlencode({"api": 1, "query": q})
 
 
-UPSERT = """
+SERVICE_UPSERT = """
 INSERT INTO services_meta
     (service_approval_number, slug, google_maps_link, age_min_years, age_max_years, derived_at)
 VALUES (%s, %s, %s, %s, %s, now())
@@ -90,7 +90,13 @@ ON CONFLICT (service_approval_number) DO UPDATE SET
     derived_at       = now();
 """
 
-SELECT_COLS = (
+PROVIDER_UPSERT = """
+INSERT INTO providers_meta (provider_approval_number, slug)
+VALUES (%s, %s)
+ON CONFLICT (provider_approval_number) DO UPDATE SET slug = EXCLUDED.slug;
+"""
+
+SERVICE_COLS = (
     "service_approval_number, service_name, service_address, suburb, state, postcode, "
     "service_type, is_long_day_care, is_preschool_part_of_school, is_preschool_stand_alone, "
     "is_oshc_after_school, is_oshc_before_school, is_oshc_vacation_care"
@@ -110,20 +116,36 @@ def main() -> None:
             if not args.no_schema:
                 print("Applying enrichment_schema.sql ...")
                 cur.execute(SCHEMA_SQL.read_text())
-            cur.execute(f"SELECT {SELECT_COLS} FROM services")
-            rows = cur.fetchall()
 
-        values = []
-        for r in rows:
+            cur.execute(f"SELECT {SERVICE_COLS} FROM services")
+            services = cur.fetchall()
+            cur.execute(
+                "SELECT provider_approval_number, trading_name, legal_name FROM providers"
+            )
+            providers = cur.fetchall()
+
+        service_vals = []
+        for r in services:
             amin, amax = age_range(r)
-            values.append((r["service_approval_number"], make_slug(r), maps_link(r), amin, amax))
+            slug = slugify(r.get("service_name"), r.get("suburb"), r.get("postcode"))
+            service_vals.append(
+                (r["service_approval_number"], slug, maps_link(r), amin, amax)
+            )
+
+        provider_vals = [
+            (r["provider_approval_number"],
+             slugify(r.get("trading_name") or r.get("legal_name")))
+            for r in providers
+        ]
 
         with conn.cursor() as cur:
-            cur.executemany(UPSERT, values)
+            cur.executemany(SERVICE_UPSERT, service_vals)
+            cur.executemany(PROVIDER_UPSERT, provider_vals)
         conn.commit()
 
-    n_age = sum(1 for v in values if v[3] is not None)
-    print(f"Derived {len(values):,} rows ({n_age:,} with an age range).")
+    n_age = sum(1 for v in service_vals if v[3] is not None)
+    print(f"Derived {len(service_vals):,} services ({n_age:,} with an age range) "
+          f"+ {len(provider_vals):,} providers.")
 
 
 if __name__ == "__main__":

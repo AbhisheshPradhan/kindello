@@ -695,3 +695,63 @@ export async function getStateHub(code: string): Promise<StateHub | null> {
 		topCentres: top.map(toCentre),
 	};
 }
+
+// Resolve a typed location (suburb name or 4-digit postcode) to its canonical landing
+// page: the biggest suburb+postcode cluster. Powers the homepage search hero.
+export async function resolvePlace(
+	q: string,
+): Promise<{ suburb: string; slug: string; postcode: string; state: string } | null> {
+	const t = q.trim();
+	if (!t) return null;
+	const pick = (r?: { suburb: string; state: string; postcode: string }) =>
+		r
+			? {
+					suburb: titleCase(r.suburb),
+					slug: suburbSlug(r.suburb),
+					postcode: r.postcode,
+					state: r.state,
+				}
+			: null;
+
+	if (/^\d{4}$/.test(t)) {
+		const { rows } = await pool.query<{
+			suburb: string;
+			state: string;
+			postcode: string;
+		}>(
+			`SELECT suburb, state, postcode, count(*) n FROM services
+       WHERE postcode = $1 GROUP BY suburb, state, postcode ORDER BY n DESC LIMIT 1`,
+			[t],
+		);
+		return pick(rows[0]);
+	}
+
+	const cleaned = t.replace(/,/g, " ").replace(/\s+/g, " ").trim();
+	const m = cleaned.match(/^(.*?)(?:\s+(ACT|NSW|NT|QLD|SA|TAS|VIC|WA))?$/i);
+	const suburb = (m?.[1] ?? cleaned).trim();
+	const state = (m?.[2] ?? "").toUpperCase();
+	const params: unknown[] = [suburb];
+	let sql = `SELECT suburb, state, postcode, count(*) n FROM services WHERE upper(suburb) = upper($1)`;
+	if (state) {
+		sql += ` AND state = $2`;
+		params.push(state);
+	}
+	sql += ` GROUP BY suburb, state, postcode ORDER BY n DESC LIMIT 1`;
+	let { rows } = await pool.query<{
+		suburb: string;
+		state: string;
+		postcode: string;
+	}>(sql, params);
+	if (!rows[0] && state) {
+		({ rows } = await pool.query<{
+			suburb: string;
+			state: string;
+			postcode: string;
+		}>(
+			`SELECT suburb, state, postcode, count(*) n FROM services WHERE upper(suburb) = upper($1)
+       GROUP BY suburb, state, postcode ORDER BY n DESC LIMIT 1`,
+			[suburb],
+		));
+	}
+	return pick(rows[0]);
+}
