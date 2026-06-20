@@ -34,15 +34,67 @@ function useToggle(key: string, id: string): [boolean, () => void] {
 	return [on, toggle];
 }
 
-// Directory list card: Google rating + NQS rating, name, address, hours, then
-// compare/save actions. Image is optional and hidden when we don't have one.
-export function CentreListCard({
-	centre,
-	image,
-}: {
-	centre: DirectoryCentre;
-	image?: string | null;
-}) {
+// Soft brand gradients for the photo-less placeholder (deterministic per centre).
+const PLACEHOLDER_GRADS = [
+	"from-teal-100 to-teal-50",
+	"from-amber-100 to-amber-50",
+	"from-teal-50 to-amber-50",
+	"from-amber-50 to-teal-100",
+];
+
+// Small brand-logo chip, shown over the hero/placeholder — never as the hero itself.
+function LogoBadge({ src, alt }: { src: string; alt: string }) {
+	const [err, setErr] = useState(false);
+	if (err) return null;
+	return (
+		<span className="absolute bottom-2 left-2 inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-border bg-white shadow-sm">
+			{/* eslint-disable-next-line @next/next/no-img-element */}
+			<img
+				src={src}
+				alt={alt}
+				onError={() => setErr(true)}
+				className="h-full w-full object-contain p-1"
+				loading="lazy"
+			/>
+		</span>
+	);
+}
+
+// Card media: the ranked hero photo (cover) or a gradient placeholder (stock image
+// later). A logo, if any, rides as a small badge — it is never the hero.
+function CardMedia({ centre }: { centre: DirectoryCentre }) {
+	const [failed, setFailed] = useState(false);
+	const show = centre.image && !failed;
+	return (
+		<div className="relative h-40 w-full">
+			{show ? (
+				// eslint-disable-next-line @next/next/no-img-element
+				<img
+					src={centre.image!}
+					alt={centre.name}
+					onError={() => setFailed(true)}
+					className="h-40 w-full bg-muted object-cover"
+					loading="lazy"
+				/>
+			) : (
+				<div
+					className={`flex h-40 w-full items-center justify-center bg-linear-to-br ${
+						PLACEHOLDER_GRADS[centre.seed % PLACEHOLDER_GRADS.length]
+					}`}
+				>
+					<span className="text-teal-600/35">
+						<Icon name="baby" size={40} strokeWidth={1.5} />
+					</span>
+				</div>
+			)}
+			{centre.logo && <LogoBadge src={centre.logo} alt={centre.name} />}
+		</div>
+	);
+}
+
+// Directory list card: hero/logo image, Google rating + NQS rating, name,
+// address, hours, then compare/save actions.
+export function CentreListCard({ centre }: { centre: DirectoryCentre }) {
 	const [compared, toggleCompare] = useToggle("kindello:compare", centre.id);
 	const [saved, toggleSave] = useToggle("kindello:saved", centre.id);
 	const hours = summariseHours(centre.operatingHours);
@@ -53,13 +105,9 @@ export function CentreListCard({
 
 	return (
 		<div className="flex flex-col rounded-xl border border-border bg-card overflow-hidden shadow-xs hover:shadow-md transition-shadow">
-			{image && (
-				<img
-					src={image}
-					alt={centre.name}
-					className="h-40 w-full object-cover"
-				/>
-			)}
+			<Link href={centrePath(centre)} aria-label={centre.name}>
+				<CardMedia centre={centre} />
+			</Link>
 			<div className="flex flex-col gap-2 p-4 flex-1">
 				{/* Google rating | NQS rating */}
 				<div className="flex items-center justify-between gap-2">

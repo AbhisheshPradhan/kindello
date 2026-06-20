@@ -20,6 +20,7 @@ import { Tag } from "@/components/ds/tag";
 import { Icon, type IconName } from "@/components/ds/icon";
 import { MapPreview } from "@/components/ds/map-preview";
 import { CentreActions } from "@/components/centre/centre-actions";
+import { DetailGallery } from "@/components/directory/detail-gallery";
 
 function mapsLinkFor(c: CentreDetail): string {
 	const q = [c.name, c.address, c.suburb, c.state, c.postcode]
@@ -185,12 +186,6 @@ export async function generateMetadata({
 	};
 }
 
-const GALLERY = [
-	"linear-gradient(135deg,#2fb3b3,#1ca6a6 60%,#136d6d)",
-	"linear-gradient(135deg,#ffc83d,#ff8166 70%,#f9603f)",
-	"linear-gradient(135deg,#57c5c5,#2fb3b3 60%,#158888)",
-];
-
 // Shared section/panel class strings — the detail page repeats these throughout.
 const SECTION_H2 = "text-[22px] font-semibold text-foreground";
 const PANEL = "border border-border rounded-xl p-4.5 bg-card shadow-xs";
@@ -318,42 +313,13 @@ export default async function CentrePage({ params }: { params: CentreParams }) {
 						/>
 					</div>
 
-					{/* Photo gallery */}
-					<div className="grid grid-cols-[2fr_1fr] gap-3 mt-7 h-85">
-						<div
-							className="relative rounded-xl overflow-hidden"
-							style={{
-								background:
-									GALLERY[centre.seed % GALLERY.length],
-							}}
-						>
-							<span className="absolute inset-0 flex items-center justify-center text-white/50">
-								<Icon
-									name="baby"
-									size={72}
-									strokeWidth={1.5}
-								/>
-							</span>
-							<span className="absolute bottom-3 left-3 px-2.75 py-1.25 text-xs font-semibold text-teal-700 bg-white/92 rounded-full">
-								Photos coming soon
-							</span>
-						</div>
-						<div className="grid grid-rows-[1fr_1fr] gap-3">
-							{[1, 2].map((n) => (
-								<div
-									key={n}
-									className="rounded-xl overflow-hidden"
-									style={{
-										background:
-											GALLERY[
-												(centre.seed + n) %
-													GALLERY.length
-											],
-									}}
-								/>
-							))}
-						</div>
-					</div>
+					{/* Photo gallery — real operator photos, logo fallback, then placeholder */}
+					<DetailGallery
+						images={centre.gallery}
+						logo={centre.logo}
+						name={centre.name}
+						seed={centre.seed}
+					/>
 
 					{/* Quick facts bar */}
 					<div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-px mt-7 bg-border border rounded-xl overflow-hidden">

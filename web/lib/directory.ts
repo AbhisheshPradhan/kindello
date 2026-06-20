@@ -41,6 +41,11 @@ export type DirectoryCentre = {
 	reviews: number;
 	tags: string[];
 	seed: number;
+	// enrichment (services_meta), gated on website_verified, served same-origin via
+	// /api/img. `image` is the best REAL photo (ranked hero, never a logo/banner) or
+	// null -> placeholder. `logo` is the brand mark, shown as a small badge only.
+	image: string | null;
+	logo: string | null;
 };
 
 type CareFlags = {
@@ -73,6 +78,9 @@ type Row = {
 	is_oshc_before_school: boolean | null;
 	is_oshc_after_school: boolean | null;
 	is_oshc_vacation_care: boolean | null;
+	logo_url: string | null;
+	website_verified: boolean | null;
+	photo_order: number[] | null;
 };
 
 const SELECT = `
@@ -80,7 +88,10 @@ const SELECT = `
   overall_rating, number_of_approved_places, nullif(phone,'') AS phone,
   latitude::float8 AS latitude, longitude::float8 AS longitude, operating_hours, service_type,
   is_long_day_care, is_preschool_stand_alone, is_preschool_part_of_school,
-  is_oshc_before_school, is_oshc_after_school, is_oshc_vacation_care`;
+  is_oshc_before_school, is_oshc_after_school, is_oshc_vacation_care,
+  (SELECT m.logo_url FROM services_meta m WHERE m.service_approval_number = services.service_approval_number) AS logo_url,
+  (SELECT m.website_verified FROM services_meta m WHERE m.service_approval_number = services.service_approval_number) AS website_verified,
+  (SELECT m.photo_order FROM services_meta m WHERE m.service_approval_number = services.service_approval_number) AS photo_order`;
 
 // Stable small integer from an id, for gradient/photo seeds + representative figures.
 function hashSeed(id: string): number {
@@ -127,8 +138,23 @@ function careTags(row: Row): string[] {
 	return tags.slice(0, 3);
 }
 
+// Resolve card visuals, gated on website_verified. `image` = the best ranked photo
+// (photo_order[0]; never a logo/banner — that ranking is done in the backfill);
+// null -> placeholder (stock image later). `logo` = brand mark for the small badge.
+function resolveImage(row: Row): { image: string | null; logo: string | null } {
+	if (!row.website_verified) return { image: null, logo: null };
+	const id = encodeURIComponent(row.service_approval_number);
+	const hero = row.photo_order?.[0];
+	return {
+		image:
+			hero != null ? `/api/img?id=${id}&kind=photo&i=${hero}` : null,
+		logo: row.logo_url ? `/api/img?id=${id}&kind=logo` : null,
+	};
+}
+
 function toCentre(row: Row): DirectoryCentre {
 	const seed = hashSeed(row.service_approval_number);
+	const { image, logo } = resolveImage(row);
 	return {
 		id: row.service_approval_number,
 		name: titleCase(row.service_name ?? "Childcare centre"),
@@ -155,6 +181,8 @@ function toCentre(row: Row): DirectoryCentre {
 		reviews: reviewCount(seed),
 		tags: careTags(row),
 		seed,
+		image,
+		logo,
 	};
 }
 
@@ -291,6 +319,8 @@ export type CentreDetail = DirectoryCentre & {
 	qualityAreas: { area: number; label: string; rating: string | null }[];
 	approvalDate: string | null;
 	providerName: string | null;
+	// ranked gallery (proxied /api/img URLs, best-first; `logo` inherited from base)
+	gallery: string[];
 };
 
 export async function getCentreDetail(
@@ -319,6 +349,13 @@ export async function getCentreDetail(
 	const r = rows[0];
 	if (!r) return null;
 	const base = toCentre(r);
+	// Ranked gallery from photo_order (best-first; logo/banners already excluded).
+	const idEnc = encodeURIComponent(r.service_approval_number);
+	const gallery = r.website_verified
+		? (r.photo_order ?? []).map(
+				(i) => `/api/img?id=${idEnc}&kind=photo&i=${i}`,
+			)
+		: [];
 	const qualityAreas = QUALITY_AREAS.map((label, i) => ({
 		area: i + 1,
 		label,
@@ -334,6 +371,7 @@ export async function getCentreDetail(
 		providerName: r.provider_legal_name
 			? titleCase(r.provider_legal_name)
 			: null,
+		gallery,
 	};
 }
 
