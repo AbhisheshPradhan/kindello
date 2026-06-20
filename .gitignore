@@ -12,8 +12,9 @@ backups/
 # Playwright MCP scratch (page snapshots from browser tools)
 .playwright-mcp/
 
-# Crawl run logs
+# Crawl run logs + failure logs (run artifacts)
 ingest/crawl/*.log
+ingest/crawl/blocked*.csv
 
 # Python
 ingest/.venv/
