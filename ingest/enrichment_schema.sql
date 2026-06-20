@@ -92,7 +92,8 @@ CREATE TABLE IF NOT EXISTS services_meta (
     -- Stage 5: claim portal (licensed, centre-supplied) — the wedge
     fees           jsonb,                   -- {daily_rate, ccs_eligible, ...}
     vacancies      jsonb,                   -- {"0-2": true, "2-3": false, ...}
-    photos         jsonb,                   -- [{url, caption}] — uploaded, ours to serve
+    photos         jsonb,                   -- [{url, source, fetched_at, w, h}] — crawled/uploaded; w,h backfilled by measure-photos.js
+    photo_order    smallint[],              -- indices into photos, best-first hero ranking (banners/logos/too-small excluded); [] = none good
     claimed        boolean NOT NULL DEFAULT false,
     claimed_at     timestamptz,
 
