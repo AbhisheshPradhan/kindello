@@ -1,5 +1,7 @@
 # Kindello
 
+**DEMO:** <a href="https://kindello.vercel.app/" target="_blank" rel="noopener noreferrer">kindello.vercel.app</a>
+
 A public **directory** of every approved childcare / early-childhood-education service in Australia (~18k centres), built on the authoritative ACECQA spine. The same cleaned, daily-synced data is the B2B asset — licensed later as a feed, an API, and an embeddable widget to other childcare directories.
 
 > **Pivot (2026-06):** the consumer product is a **traditional, location-based directory** (suburb + care-type landing pages, list + map, centre detail pages) — the model CareforKids / KindiCare use and that parents + Google expect. The earlier **AI chat finder is parked, not deleted**: it still runs at `/finder`, but it's no longer the main flow. The chat tooling (Vercel AI SDK, tool-calling search) is preserved for later experiments and for the future embeddable widget.
@@ -30,7 +32,7 @@ Two backends, one shared database. **Python** does the offline data engineering;
 ```
 
 - **Data spine** — ACECQA National Registers: every approved provider + service + NQS quality rating (18,229 services, updated daily by the regulator).
-- **Enrichment** — geocoding (done, via G-NAF); later: fees/vacancies, Google reviews/photos, philosophy/programs, ABN, vector embeddings.
+- **Enrichment** — geocoding (done, via G-NAF) + a keyless operator-site crawl (done: websites/logos/photos/emails into `services_meta`); later: fees/vacancies, Google reviews/photos, philosophy/programs, ABN, vector embeddings.
 - **DB** — PostgreSQL 18 local (→ Neon in cloud, for demos/production). **PostGIS** enabled for radius search; **pgvector** to be added later for the parked chatbot embeddings.
 - **Ingest** — Python (`ingest/`): download → geocode → load.
 - **Web app** — TypeScript / Next.js 16 (`web/`): server-rendered directory pages + Mapbox map, on the design system in `web/components/ds/`. The parked AI finder reuses `/api/chat` + the Vercel AI SDK.
@@ -40,6 +42,7 @@ Two backends, one shared database. **Python** does the offline data engineering;
 - ✅ Spine loaded: 18,229 services + 10,737 providers
 - ✅ Geocoded 92.7% via G-NAF (free, authoritative, redistributable AU open data)
 - ✅ PostGIS radius search ("centres near me")
+- ✅ **Operator-site crawl** (keyless Puppeteer + residential proxies): 18,227 websites, 17,038 logos (93%), 13,418 photos (74%), 10,925 emails (60%) into `services_meta`
 - ✅ **Directory frontend**: homepage (location search hero + browse), suburb + care-type landing pages (radius-based list + Mapbox map, "Search this area" / "Zoom in to search" → "Map Area"), centre detail pages with NQS quality areas
 - 🅿️ AI chat finder parked at `/finder` (Next.js + Vercel AI SDK, tool-calling search over Postgres)
 - ⬜ Enrichment (Places, fees, vacancies, ABN), pgvector, technical SEO polish (sitemaps/JSON-LD), embeddable widget, B2B feed/API
